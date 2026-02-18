@@ -1,0 +1,22 @@
+/**
+ * @file types.ts
+ * @description Shared type definitions for the Voicebot Console frontend.
+ * @module types
+ *
+
+ */
+
+import { ROLES, STATES, THEME } from './constants';
+
+export type Role = (typeof ROLES)[keyof typeof ROLES];
+
+export type TranscriptItem = {
+  id: string;
+  role: Role;
+  text: string;
+  time: string;
+};
+
+export type VoiceState = (typeof STATES)[keyof typeof STATES];
+
+export type ThemeOption = typeof THEME.LIGHT | typeof THEME.DARK;

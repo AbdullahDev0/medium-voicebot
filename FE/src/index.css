@@ -1,0 +1,83 @@
+/**
+ * @file index.css
+ * @description Global styles and Tailwind import for the Voicebot Console frontend.
+ * @module index-styles
+ *
+
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --bg: radial-gradient(1200px 600px at 10% -10%, rgba(0, 0, 0, 0.08), transparent 60%),
+    radial-gradient(900px 520px at 90% 0%, rgba(0, 0, 0, 0.06), transparent 55%),
+    linear-gradient(180deg, #f7f7f7 0%, #f2f2f2 55%, #ededed 100%);
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel-2: rgba(255, 255, 255, 0.92);
+  --ink: #0b0b0b;
+  --muted: #585858;
+  --stroke: rgba(0, 0, 0, 0.12);
+  --glow: rgba(0, 0, 0, 0.2);
+  --glow-strong: rgba(0, 0, 0, 0.4);
+  --orb-core: rgba(255, 255, 255, 0.7);
+  --orb-core-2: rgba(255, 255, 255, 0.25);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: radial-gradient(1200px 620px at 12% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(900px 520px at 88% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
+    linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 55%, #131313 100%);
+  --panel: rgba(18, 18, 18, 0.82);
+  --panel-2: rgba(26, 26, 26, 0.9);
+  --ink: #f5f5f5;
+  --muted: #9d9d9d;
+  --stroke: rgba(255, 255, 255, 0.14);
+  --glow: rgba(255, 255, 255, 0.2);
+  --glow-strong: rgba(255, 255, 255, 0.4);
+  --orb-core: rgba(255, 255, 255, 0.08);
+  --orb-core-2: rgba(255, 255, 255, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: radial-gradient(1200px 620px at 12% -10%, rgba(255, 255, 255, 0.08), transparent 60%),
+      radial-gradient(900px 520px at 88% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
+      linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 55%, #131313 100%);
+    --panel: rgba(18, 18, 18, 0.82);
+    --panel-2: rgba(26, 26, 26, 0.9);
+    --ink: #f5f5f5;
+    --muted: #9d9d9d;
+    --stroke: rgba(255, 255, 255, 0.14);
+    --glow: rgba(255, 255, 255, 0.2);
+    --glow-strong: rgba(255, 255, 255, 0.4);
+    --orb-core: rgba(255, 255, 255, 0.08);
+    --orb-core-2: rgba(255, 255, 255, 0.02);
+  }
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Playfair Display', serif;
+}
