@@ -1,1 +1,15 @@
 GENERAL_INSTRUCTIONS.MD
+.DS_Store
+*.log
+*.local
+*.env
+*.env.*
+node_modules
+dist
+dist-ssr
+.vscode/*
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
