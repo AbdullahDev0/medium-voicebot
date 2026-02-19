@@ -1,15 +1,15 @@
 /**
  * @file llm.service.ts
- * @description LLM service for OpenAI responses.
+ * @description LLM service for OpenAI and Ollama responses.
  * @module llm/service
  *
  */
 
 import { Injectable } from '@nestjs/common';
-import { ERRORS, HTTP, OPENAI } from '../constants';
+import { ERRORS, HTTP, OLLAMA, OPENAI } from '../constants';
 import { config } from '../config';
 
-const extractResponseText = (data: unknown) => {
+const extractOpenAiText = (data: unknown) => {
   if (!data || typeof data !== 'object') {
     return '';
   }
@@ -41,36 +41,94 @@ const extractResponseText = (data: unknown) => {
   return '';
 };
 
+const extractOllamaText = (data: unknown) => {
+  if (!data || typeof data !== 'object') {
+    return '';
+  }
+
+  const record = data as Record<string, unknown>;
+
+  return typeof record[OLLAMA.RESPONSE_TEXT_KEY] === 'string'
+    ? (record[OLLAMA.RESPONSE_TEXT_KEY] as string)
+    : '';
+};
+
+const requestOpenAi = async (input: string) => {
+  if (!config.openai) {
+    throw new Error(ERRORS.LLM_FAILED);
+  }
+
+  const response = await fetch(
+    `${config.openai.baseUrl}${OPENAI.RESPONSES_PATH}`,
+    {
+      method: HTTP.METHOD_POST,
+      headers: {
+        [HTTP.HEADER_CONTENT_TYPE]: HTTP.CONTENT_TYPE_JSON,
+        [HTTP.HEADER_AUTH]: `${HTTP.BEARER_PREFIX}${config.openai.apiKey}`,
+      },
+      body: JSON.stringify({
+        [OPENAI.MODEL_KEY]: config.openai.model,
+        [OPENAI.INPUT_KEY]: input,
+        [OPENAI.STORE_KEY]: OPENAI.STORE_VALUE,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(ERRORS.LLM_FAILED);
+  }
+
+  const data = (await response.json()) as unknown;
+  const text = extractOpenAiText(data);
+
+  if (!text) {
+    throw new Error(ERRORS.LLM_EMPTY);
+  }
+
+  return text;
+};
+
+const requestOllama = async (input: string) => {
+  if (!config.ollama) {
+    throw new Error(ERRORS.LLM_FAILED);
+  }
+
+  const response = await fetch(
+    `${config.ollama.baseUrl}${OLLAMA.GENERATE_PATH}`,
+    {
+      method: HTTP.METHOD_POST,
+      headers: {
+        [HTTP.HEADER_CONTENT_TYPE]: HTTP.CONTENT_TYPE_JSON,
+      },
+      body: JSON.stringify({
+        [OLLAMA.MODEL_KEY]: config.ollama.model,
+        [OLLAMA.PROMPT_KEY]: input,
+        [OLLAMA.STREAM_KEY]: OLLAMA.STREAM_VALUE,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(ERRORS.LLM_FAILED);
+  }
+
+  const data = (await response.json()) as unknown;
+  const text = extractOllamaText(data);
+
+  if (!text) {
+    throw new Error(ERRORS.LLM_EMPTY);
+  }
+
+  return text;
+};
+
 @Injectable()
 export class LlmService {
   async requestResponse(input: string) {
-    const response = await fetch(
-      `${config.openai.baseUrl}${OPENAI.RESPONSES_PATH}`,
-      {
-        method: HTTP.METHOD_POST,
-        headers: {
-          [HTTP.HEADER_CONTENT_TYPE]: HTTP.CONTENT_TYPE_JSON,
-          [HTTP.HEADER_AUTH]: `${HTTP.BEARER_PREFIX}${config.openai.apiKey}`,
-        },
-        body: JSON.stringify({
-          [OPENAI.MODEL_KEY]: config.openai.model,
-          [OPENAI.INPUT_KEY]: input,
-          [OPENAI.STORE_KEY]: OPENAI.STORE_VALUE,
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(ERRORS.LLM_FAILED);
+    if (config.llm.useLocal) {
+      return requestOllama(input);
     }
 
-    const data = (await response.json()) as unknown;
-    const text = extractResponseText(data);
-
-    if (!text) {
-      throw new Error(ERRORS.LLM_EMPTY);
-    }
-
-    return text;
+    return requestOpenAi(input);
   }
 }

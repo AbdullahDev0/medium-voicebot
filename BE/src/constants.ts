@@ -18,6 +18,9 @@ export const API = {
 export const ENV_KEYS = {
   PORT: 'PORT',
   CORS_ORIGIN: 'CORS_ORIGIN',
+  USE_LOCAL_LLM: 'USE_LOCAL_LLM',
+  OLLAMA_BASE_URL: 'OLLAMA_BASE_URL',
+  OLLAMA_MODEL: 'OLLAMA_MODEL',
   OPENAI_API_KEY: 'OPENAI_API_KEY',
   OPENAI_MODEL: 'OPENAI_MODEL',
   OPENAI_BASE_URL: 'OPENAI_BASE_URL',
@@ -36,10 +39,15 @@ export const DELIMITERS = {
 
 export const HTTP = {
   METHOD_POST: 'POST',
+  METHOD_GET: 'GET',
   HEADER_AUTH: 'Authorization',
   HEADER_CONTENT_TYPE: 'Content-Type',
   CONTENT_TYPE_JSON: 'application/json',
   BEARER_PREFIX: 'Bearer ',
+};
+
+export const BOOL = {
+  TRUE: 'true',
 };
 
 export const OPENAI = {
@@ -52,4 +60,13 @@ export const OPENAI = {
   OUTPUT_KEY: 'output',
   OUTPUT_MESSAGE_TYPE: 'message',
   OUTPUT_TEXT_TYPE: 'output_text',
+};
+
+export const OLLAMA = {
+  GENERATE_PATH: '/api/generate',
+  MODEL_KEY: 'model',
+  PROMPT_KEY: 'prompt',
+  STREAM_KEY: 'stream',
+  STREAM_VALUE: false,
+  RESPONSE_TEXT_KEY: 'response',
 };
