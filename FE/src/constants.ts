@@ -21,6 +21,11 @@ export const UI = {
   THEME_LABEL: 'Theme',
   THEME_LIGHT: 'Light',
   THEME_DARK: 'Dark',
+  MODE_LABEL: 'Mode',
+  MODE_NORMAL: 'Normal',
+  MODE_AGENT: 'Agent',
+  MODE_HINT_NORMAL: 'Direct',
+  MODE_HINT_AGENT: 'Web search',
   INPUT_LABEL: 'Message',
   INPUT_PLACEHOLDER: 'Speak or type a message',
   SEND_LABEL: 'Send',
@@ -40,6 +45,7 @@ export const ARIA = {
   WAVEFORM: 'Audio waveform',
   VOICE_ORB: 'Voice orb',
   THEME_TOGGLE: 'Toggle theme',
+  MODE_TOGGLE: 'Toggle mode',
 };
 
 export const IDS = {
@@ -52,6 +58,16 @@ export const THEME = {
   STORAGE_KEY: 'voicebot.theme',
   ATTR: 'data-theme',
   MEDIA_QUERY_DARK: '(prefers-color-scheme: dark)',
+};
+
+export const MODES = {
+  NORMAL: 'normal',
+  AGENT: 'agent',
+};
+
+export const MODE_LABELS = {
+  [MODES.NORMAL]: UI.MODE_NORMAL,
+  [MODES.AGENT]: UI.MODE_AGENT,
 };
 
 export const STATES = {
@@ -135,6 +151,7 @@ export const WAVEFORM = {
 
 export const API_PATHS = {
   LLM_RESPOND: '/api/llm/respond',
+  LLM_AGENT: '/api/llm/agent',
   HEALTH: '/api/health',
 };
 

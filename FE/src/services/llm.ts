@@ -7,11 +7,19 @@
  * - Versioning will be added only when explicitly requested.
  */
 
-import { API_PATHS, API_REQUEST, API_RESPONSE, ERRORS, HTTP } from '../constants';
+import { API_PATHS, API_REQUEST, API_RESPONSE, ERRORS, HTTP, MODES } from '../constants';
 import { config } from '../config';
+import type { ModeOption } from '../types';
 
-export const requestAssistantResponse = async ({ input }: { input: string }) => {
-  const response = await fetch(`${config.api.baseUrl}${API_PATHS.LLM_RESPOND}`,
+export const requestAssistantResponse = async ({
+  input,
+  mode,
+}: {
+  input: string;
+  mode: ModeOption;
+}) => {
+  const path = mode === MODES.AGENT ? API_PATHS.LLM_AGENT : API_PATHS.LLM_RESPOND;
+  const response = await fetch(`${config.api.baseUrl}${path}`,
     {
       method: HTTP.METHOD_POST,
       headers: {

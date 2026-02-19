@@ -6,7 +6,7 @@
  */
 
 import { config as loadEnv } from 'dotenv';
-import { BOOL, DELIMITERS, ENV_KEYS, ERRORS } from './constants';
+import { BOOL, DEFAULTS, DELIMITERS, ENV_KEYS, ERRORS } from './constants';
 
 loadEnv();
 
@@ -14,6 +14,13 @@ const readEnv = (key: string) => process.env[key];
 
 const normalizeBoolean = (value?: string) =>
   typeof value === 'string' && value.toLowerCase() === BOOL.TRUE;
+
+const readNumber = (value?: string) => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined;
+  }
+  return Number(value);
+};
 
 const requireEnv = (keys: string[]) => {
   const missing = keys.filter((key) => !readEnv(key));
@@ -29,6 +36,9 @@ const requireEnv = (keys: string[]) => {
 };
 
 const useLocalLlm = normalizeBoolean(readEnv(ENV_KEYS.USE_LOCAL_LLM));
+const useTools = normalizeBoolean(readEnv(ENV_KEYS.USE_TOOLS));
+const agentDebugLogs = normalizeBoolean(readEnv(ENV_KEYS.AGENT_DEBUG_LOGS));
+const toolsEnabled = useTools;
 
 const env = requireEnv([
   ENV_KEYS.PORT,
@@ -40,12 +50,21 @@ const env = requireEnv([
         ENV_KEYS.OPENAI_MODEL,
         ENV_KEYS.OPENAI_BASE_URL,
       ]),
+  ...(toolsEnabled ? [ENV_KEYS.BRAVE_API_KEY, ENV_KEYS.BRAVE_BASE_URL] : []),
 ]);
 
 const portValue = Number(env[ENV_KEYS.PORT]);
+const braveResultCount = readNumber(readEnv(ENV_KEYS.BRAVE_RESULT_COUNT));
 
 if (!Number.isFinite(portValue)) {
   throw new Error(ERRORS.INVALID_PORT);
+}
+
+if (
+  typeof braveResultCount === 'number' &&
+  !Number.isFinite(braveResultCount)
+) {
+  throw new Error(ERRORS.INVALID_NUMBER);
 }
 
 export const config = {
@@ -58,6 +77,12 @@ export const config = {
   llm: {
     useLocal: useLocalLlm,
   },
+  tools: {
+    enabled: toolsEnabled,
+  },
+  logging: {
+    agentDebug: agentDebugLogs,
+  },
   openai: useLocalLlm
     ? null
     : {
@@ -69,6 +94,13 @@ export const config = {
     ? {
         baseUrl: env[ENV_KEYS.OLLAMA_BASE_URL],
         model: env[ENV_KEYS.OLLAMA_MODEL],
+      }
+    : null,
+  brave: toolsEnabled
+    ? {
+        apiKey: env[ENV_KEYS.BRAVE_API_KEY],
+        baseUrl: env[ENV_KEYS.BRAVE_BASE_URL],
+        resultCount: braveResultCount ?? DEFAULTS.BRAVE_RESULT_COUNT,
       }
     : null,
 };

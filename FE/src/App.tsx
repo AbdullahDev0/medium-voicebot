@@ -12,6 +12,7 @@ import {
   ARIA,
   ERRORS,
   LIMITS,
+  MODES,
   ROLES,
   SPEECH_ERRORS,
   STATE_LABELS,
@@ -20,6 +21,7 @@ import {
   UI,
 } from './constants';
 import { ControlBar } from './components/ControlBar';
+import { ModeToggle } from './components/ModeToggle';
 import { ResponsePanel } from './components/ResponsePanel';
 import { StateMachine } from './components/StateMachine';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -31,7 +33,7 @@ import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { requestAssistantResponse } from './services/llm';
 import { formatTime } from './utils/time';
-import type { Role, TranscriptItem, ThemeOption, VoiceState } from './types';
+import type { ModeOption, Role, TranscriptItem, ThemeOption, VoiceState } from './types';
 
 const createTranscriptItem = (role: Role, text: string): TranscriptItem => ({
   id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
@@ -48,6 +50,7 @@ export const App = () => {
   const [inputText, setInputText] = useState('');
   const [lastResponse, setLastResponse] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [mode, setMode] = useState<ModeOption>(MODES.NORMAL);
   const [theme, setTheme] = useState<ThemeOption>(() => {
     if (typeof window === 'undefined') {
       return THEME.LIGHT;
@@ -97,7 +100,10 @@ export const App = () => {
       appendTranscript(ROLES.USER, normalized);
 
       try {
-        const responseText = await requestAssistantResponse({ input: normalized });
+        const responseText = await requestAssistantResponse({
+          input: normalized,
+          mode,
+        });
         setLastResponse(responseText);
         appendTranscript(ROLES.ASSISTANT, responseText);
 
@@ -113,7 +119,7 @@ export const App = () => {
         setErrorMessage((error as Error)?.message || ERRORS.LLM_FAILED);
       }
     },
-    [appendTranscript, speak, stopMeter, ttsSupported]
+    [appendTranscript, mode, speak, stopMeter, ttsSupported]
   );
 
   const handleInterimTranscript = useCallback((text: string) => {
@@ -230,6 +236,7 @@ export const App = () => {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <ThemeToggle theme={theme} onToggle={handleToggleTheme} />
+            <ModeToggle mode={mode} onChange={setMode} />
             <div className="flex items-center gap-3 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 py-2">
               <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {UI.STATUS_LABEL}

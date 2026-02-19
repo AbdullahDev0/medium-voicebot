@@ -6,7 +6,7 @@
 
  */
 
-import { ROLES, STATES, THEME } from './constants';
+import { MODES, ROLES, STATES, THEME } from './constants';
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
@@ -20,3 +20,5 @@ export type TranscriptItem = {
 export type VoiceState = (typeof STATES)[keyof typeof STATES];
 
 export type ThemeOption = typeof THEME.LIGHT | typeof THEME.DARK;
+
+export type ModeOption = (typeof MODES)[keyof typeof MODES];

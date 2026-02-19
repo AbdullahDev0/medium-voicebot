@@ -23,4 +23,14 @@ export class LlmController {
       [API.RESPONSE_TEXT_KEY]: text,
     };
   }
+
+  @Post(API.AGENT)
+  async agent(@Body() body: LlmRequestDto) {
+    const input = body.input.trim();
+    const text = await this.llmService.requestAgentResponse(input);
+
+    return {
+      [API.RESPONSE_TEXT_KEY]: text,
+    };
+  }
 }
