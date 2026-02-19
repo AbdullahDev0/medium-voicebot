@@ -21,16 +21,10 @@ const requireEnv = (keys: string[]) => {
   }, {});
 };
 
-const env = requireEnv([
-  ENV_KEYS.OPENAI_API_KEY,
-  ENV_KEYS.OPENAI_MODEL,
-  ENV_KEYS.OPENAI_BASE_URL,
-]);
+const env = requireEnv([ENV_KEYS.API_BASE_URL]);
 
 export const config = {
-  openai: {
-    apiKey: env[ENV_KEYS.OPENAI_API_KEY],
-    model: env[ENV_KEYS.OPENAI_MODEL],
-    baseUrl: env[ENV_KEYS.OPENAI_BASE_URL],
+  api: {
+    baseUrl: env[ENV_KEYS.API_BASE_URL],
   },
 };

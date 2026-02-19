@@ -1,55 +1,24 @@
 /**
  * @file llm.ts
- * @description LLM request abstraction with OpenAI as the initial provider.
+ * @description LLM request abstraction via backend gateway.
  * @module services/llm
  *
-
+ * Notes:
+ * - Versioning will be added only when explicitly requested.
  */
 
-import { API_PATHS, ERRORS, HTTP, LLM } from '../constants';
+import { API_PATHS, API_REQUEST, API_RESPONSE, ERRORS, HTTP } from '../constants';
 import { config } from '../config';
 
-const extractResponseText = (data: unknown) => {
-  if (!data || typeof data !== 'object') {
-    return '';
-  }
-
-  const record = data as Record<string, unknown>;
-
-  if (typeof record[LLM.OUTPUT_TEXT_PROPERTY] === 'string') {
-    return record[LLM.OUTPUT_TEXT_PROPERTY] as string;
-  }
-
-  const output = Array.isArray(record[LLM.OUTPUT_KEY])
-    ? (record[LLM.OUTPUT_KEY] as Array<Record<string, unknown>>)
-    : [];
-
-  for (const item of output) {
-    if (item?.type === LLM.OUTPUT_MESSAGE_TYPE) {
-      const content = Array.isArray(item.content) ? item.content : [];
-      for (const part of content as Array<Record<string, unknown>>) {
-        if (part?.type === LLM.OUTPUT_TEXT_TYPE && typeof part.text === 'string') {
-          return part.text as string;
-        }
-      }
-    }
-  }
-
-  return '';
-};
-
-const requestOpenAi = async (input: string) => {
-  const response = await fetch(`${config.openai.baseUrl}${API_PATHS.OPENAI_RESPONSES}`,
+export const requestAssistantResponse = async ({ input }: { input: string }) => {
+  const response = await fetch(`${config.api.baseUrl}${API_PATHS.LLM_RESPOND}`,
     {
       method: HTTP.METHOD_POST,
       headers: {
         [HTTP.HEADER_CONTENT_TYPE]: HTTP.CONTENT_TYPE_JSON,
-        [HTTP.HEADER_AUTH]: `${HTTP.BEARER_PREFIX}${config.openai.apiKey}`,
       },
       body: JSON.stringify({
-        [LLM.MODEL_KEY]: config.openai.model,
-        [LLM.INPUT_KEY]: input,
-        [LLM.STORE_KEY]: LLM.STORE_VALUE,
+        [API_REQUEST.INPUT_KEY]: input,
       }),
     });
 
@@ -57,30 +26,14 @@ const requestOpenAi = async (input: string) => {
     throw new Error(ERRORS.LLM_FAILED);
   }
 
-  const data = (await response.json()) as unknown;
-  const text = extractResponseText(data);
+  const data = (await response.json()) as Record<string, unknown>;
+  const text = typeof data?.[API_RESPONSE.TEXT_KEY] === 'string'
+    ? (data[API_RESPONSE.TEXT_KEY] as string)
+    : '';
 
   if (!text) {
     throw new Error(ERRORS.LLM_EMPTY);
   }
 
   return text;
-};
-
-const providers: Record<string, (input: string) => Promise<string>> = {
-  [LLM.PROVIDERS.OPENAI]: requestOpenAi,
-};
-
-export const requestAssistantResponse = async ({
-  input,
-  provider = LLM.DEFAULT_PROVIDER,
-}: {
-  input: string;
-  provider?: string;
-}) => {
-  const resolver = providers[provider];
-  if (!resolver) {
-    throw new Error(ERRORS.LLM_UNSUPPORTED);
-  }
-  return resolver(input);
 };

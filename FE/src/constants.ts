@@ -133,31 +133,23 @@ export const WAVEFORM = {
   MAX_HEIGHT: 28,
 };
 
-export const LLM = {
-  PROVIDERS: {
-    OPENAI: 'openai',
-  },
-  DEFAULT_PROVIDER: 'openai',
-  MODEL_KEY: 'model',
-  INPUT_KEY: 'input',
-  STORE_KEY: 'store',
-  STORE_VALUE: false,
-  OUTPUT_KEY: 'output',
-  OUTPUT_TEXT_PROPERTY: 'output_text',
-  OUTPUT_MESSAGE_TYPE: 'message',
-  OUTPUT_TEXT_TYPE: 'output_text',
+export const API_PATHS = {
+  LLM_RESPOND: '/api/llm/respond',
+  HEALTH: '/api/health',
 };
 
-export const API_PATHS = {
-  OPENAI_RESPONSES: '/responses',
+export const API_REQUEST = {
+  INPUT_KEY: 'input',
+};
+
+export const API_RESPONSE = {
+  TEXT_KEY: 'text',
 };
 
 export const HTTP = {
   METHOD_POST: 'POST',
-  HEADER_AUTH: 'Authorization',
   HEADER_CONTENT_TYPE: 'Content-Type',
   CONTENT_TYPE_JSON: 'application/json',
-  BEARER_PREFIX: 'Bearer ',
 };
 
 export const ERRORS = {
@@ -167,15 +159,12 @@ export const ERRORS = {
   STT_FAILED: 'Speech recognition encountered an error.',
   LLM_FAILED: 'LLM request failed.',
   LLM_EMPTY: 'No response text was returned.',
-  LLM_UNSUPPORTED: 'Selected LLM provider is not supported.',
   TTS_UNSUPPORTED: 'Text-to-speech is not supported in this browser.',
   MISSING_ENV: 'Missing required environment variables:',
 };
 
 export const ENV_KEYS = {
-  OPENAI_API_KEY: 'VITE_OPENAI_API_KEY',
-  OPENAI_MODEL: 'VITE_OPENAI_MODEL',
-  OPENAI_BASE_URL: 'VITE_OPENAI_BASE_URL',
+  API_BASE_URL: 'VITE_API_BASE_URL',
 };
 
 export const DELIMITERS = {
