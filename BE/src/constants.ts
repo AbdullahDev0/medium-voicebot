@@ -21,12 +21,17 @@ export const ENV_KEYS = {
   CORS_ORIGIN: 'CORS_ORIGIN',
   USE_LOCAL_LLM: 'USE_LOCAL_LLM',
   USE_TOOLS: 'USE_TOOLS',
+  USE_REALTIME: 'USE_REALTIME',
   AGENT_DEBUG_LOGS: 'AGENT_DEBUG_LOGS',
   OLLAMA_BASE_URL: 'OLLAMA_BASE_URL',
   OLLAMA_MODEL: 'OLLAMA_MODEL',
   OPENAI_API_KEY: 'OPENAI_API_KEY',
   OPENAI_MODEL: 'OPENAI_MODEL',
   OPENAI_BASE_URL: 'OPENAI_BASE_URL',
+  OPENAI_REALTIME_URL: 'OPENAI_REALTIME_URL',
+  OPENAI_REALTIME_MODEL: 'OPENAI_REALTIME_MODEL',
+  OPENAI_REALTIME_VOICE: 'OPENAI_REALTIME_VOICE',
+  OPENAI_REALTIME_TRANSCRIBE_MODEL: 'OPENAI_REALTIME_TRANSCRIBE_MODEL',
   BRAVE_API_KEY: 'BRAVE_API_KEY',
   BRAVE_BASE_URL: 'BRAVE_BASE_URL',
   BRAVE_RESULT_COUNT: 'BRAVE_RESULT_COUNT',
@@ -44,6 +49,10 @@ export const ERRORS = {
   TOOLS_DISABLED: 'Tooling is disabled.',
   AGENT_FAILED: 'Agent request failed.',
   AGENT_COERCED_NO_ANSWER: 'No usable answer was returned by the agent.',
+  REALTIME_DISABLED: 'Realtime voice is disabled.',
+  REALTIME_CONNECTION_FAILED: 'Realtime connection failed.',
+  REALTIME_SESSION_FAILED: 'Realtime session failed.',
+  REALTIME_CLIENT_INVALID: 'Realtime client event is invalid.',
 };
 
 export const DELIMITERS = {
@@ -92,6 +101,54 @@ export const OPENAI = {
   FUNCTION_DESCRIPTION_KEY: 'description',
   FUNCTION_PARAMETERS_KEY: 'parameters',
   RESPONSE_ID_KEY: 'id',
+};
+
+export const REALTIME = {
+  WS_PATH: '/ws/realtime',
+  QUERY_MODEL_KEY: 'model',
+  SESSION_TYPE: 'realtime',
+  INPUT_FORMAT_PCM16: 'pcm16',
+  OUTPUT_FORMAT_PCM16: 'pcm16',
+  OUTPUT_MODALITIES_AUDIO: ['audio'],
+  TURN_DETECTION_DISABLED: null,
+};
+
+export const REALTIME_KEYS = {
+  TYPE: 'type',
+  EVENT_ID: 'event_id',
+  AUDIO: 'audio',
+  SESSION: 'session',
+  RESPONSE: 'response',
+  MODEL: 'model',
+  INPUT_AUDIO_FORMAT: 'input_audio_format',
+  OUTPUT_AUDIO_FORMAT: 'output_audio_format',
+  OUTPUT_MODALITIES: 'output_modalities',
+  VOICE: 'voice',
+  TURN_DETECTION: 'turn_detection',
+  INPUT_AUDIO_TRANSCRIPTION: 'input_audio_transcription',
+};
+
+export const REALTIME_EVENTS = {
+  SESSION_UPDATE: 'session.update',
+  RESPONSE_CREATE: 'response.create',
+  RESPONSE_CANCEL: 'response.cancel',
+  INPUT_AUDIO_CLEAR: 'input_audio_buffer.clear',
+  INPUT_AUDIO_APPEND: 'input_audio_buffer.append',
+  INPUT_AUDIO_COMMIT: 'input_audio_buffer.commit',
+  OUTPUT_AUDIO_DELTA: 'response.output_audio.delta',
+  OUTPUT_AUDIO_DONE: 'response.output_audio.done',
+  OUTPUT_AUDIO_TRANSCRIPT_DELTA: 'response.output_audio_transcript.delta',
+  OUTPUT_AUDIO_TRANSCRIPT_DONE: 'response.output_audio_transcript.done',
+  INPUT_AUDIO_TRANSCRIPT_DELTA: 'conversation.item.input_audio_transcription.delta',
+  INPUT_AUDIO_TRANSCRIPT_FAILED: 'conversation.item.input_audio_transcription.failed',
+};
+
+export const REALTIME_RELAY = {
+  READY: 'realtime.ready',
+  ERROR: 'realtime.error',
+  CLOSED: 'realtime.closed',
+  MESSAGE_KEY: 'message',
+  CODE_KEY: 'code',
 };
 
 export const OLLAMA = {
@@ -229,4 +286,12 @@ export const LOGS = {
   BRAVE_PARSE_FAILED: 'Brave response parse failed.',
   AGENT_COERCE_FINAL: 'Agent coerced to final.',
   AGENT_COERCE_FAILED: 'Agent coercion failed.',
+  REALTIME_CLIENT_CONNECTED: 'Realtime client connected.',
+  REALTIME_CLIENT_DISCONNECTED: 'Realtime client disconnected.',
+  REALTIME_CLIENT_INVALID: 'Realtime client event invalid.',
+  REALTIME_DISABLED: 'Realtime disabled. Closing client.',
+  REALTIME_MISSING_CONFIG: 'Realtime config missing. Closing client.',
+  REALTIME_OPENAI_CONNECTED: 'Realtime OpenAI socket connected.',
+  REALTIME_OPENAI_CLOSED: 'Realtime OpenAI socket closed.',
+  REALTIME_OPENAI_ERROR: 'Realtime OpenAI socket error.',
 };

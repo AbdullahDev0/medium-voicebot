@@ -13,9 +13,15 @@ type ControlBarProps = {
   onChange: (value: string) => void;
   onSend: () => void;
   onToggleListening: () => void;
+  onStop?: () => void;
   onClear: () => void;
   isListening: boolean;
   isBusy: boolean;
+  inputDisabled?: boolean;
+  sendDisabled?: boolean;
+  stopDisabled?: boolean;
+  showStop?: boolean;
+  placeholder?: string;
 };
 
 type MicButtonProps = {
@@ -58,9 +64,15 @@ export const ControlBar = ({
   onChange,
   onSend,
   onToggleListening,
+  onStop,
   onClear,
   isListening,
   isBusy,
+  inputDisabled = false,
+  sendDisabled = false,
+  stopDisabled = false,
+  showStop = false,
+  placeholder,
 }: ControlBarProps) => (
   <form
     className="flex flex-col gap-3 rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] px-4 py-3 shadow-[0_20px_40px_rgba(0,0,0,0.12)] sm:flex-row sm:items-center sm:rounded-full"
@@ -77,11 +89,27 @@ export const ControlBar = ({
       aria-label={ARIA.INPUT_MESSAGE}
       value={value}
       maxLength={LIMITS.MAX_INPUT_LENGTH}
+      disabled={inputDisabled}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={UI.INPUT_PLACEHOLDER}
+      placeholder={placeholder ?? UI.INPUT_PLACEHOLDER}
       className="w-full min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none"
     />
     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+      {showStop ? (
+        <button
+          type="button"
+          onClick={onStop}
+          aria-label={ARIA.REALTIME_STOP}
+          disabled={stopDisabled || isBusy}
+          className={`rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+            stopDisabled || isBusy
+              ? 'opacity-60'
+              : 'hover:border-[var(--ink)] hover:text-[var(--ink)]'
+          }`}
+        >
+          {UI.REALTIME_STOP_LABEL}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onClear}
@@ -93,9 +121,9 @@ export const ControlBar = ({
       <button
         type="submit"
         aria-label={ARIA.SEND_MESSAGE}
-        disabled={isBusy || !value}
+        disabled={isBusy || !value || sendDisabled}
         className={`rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
-          isBusy || !value
+          isBusy || !value || sendDisabled
             ? 'opacity-60'
             : 'hover:border-[var(--ink)] hover:text-[var(--ink)]'
         }`}

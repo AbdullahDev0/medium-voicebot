@@ -20,6 +20,7 @@ import {
   THEME,
   UI,
 } from './constants';
+import { config } from './config';
 import { ControlBar } from './components/ControlBar';
 import { ModeToggle } from './components/ModeToggle';
 import { ResponsePanel } from './components/ResponsePanel';
@@ -29,6 +30,7 @@ import { TranscriptTimeline } from './components/TranscriptTimeline';
 import { VoiceOrb } from './components/VoiceOrb';
 import { Waveform } from './components/Waveform';
 import { useMicrophoneLevel } from './hooks/useMicrophoneLevel';
+import { useRealtimeSession } from './hooks/useRealtimeSession';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { requestAssistantResponse } from './services/llm';
@@ -65,6 +67,58 @@ export const App = () => {
 
   const { level, start: startMeter, stop: stopMeter, isActive: meterActive } = useMicrophoneLevel();
   const { isSupported: ttsSupported, speak } = useTextToSpeech();
+
+  const upsertTranscriptDelta = useCallback((id: string, role: Role, delta: string) => {
+    setTranscriptItems((items) => {
+      const index = items.findIndex((item) => item.id === id);
+      if (index === -1) {
+        const next = [
+          ...items,
+          {
+            id,
+            role,
+            text: delta,
+            time: formatTime(new Date()),
+          },
+        ];
+        if (next.length <= LIMITS.MAX_TRANSCRIPTS) {
+          return next;
+        }
+        return next.slice(next.length - LIMITS.MAX_TRANSCRIPTS);
+      }
+      const next = [...items];
+      next[index] = { ...next[index], text: `${next[index].text}${delta}` };
+      return next;
+    });
+  }, []);
+
+  const handleRealtimeError = useCallback((message: string) => {
+    setErrorMessage(message);
+    setStatus(STATES.ERROR);
+  }, []);
+
+  const realtimeSession = useRealtimeSession({
+    onUserTranscriptDelta: (id, text) => {
+      upsertTranscriptDelta(id, ROLES.USER, text);
+    },
+    onAssistantTranscriptDelta: (id, text) => {
+      upsertTranscriptDelta(id, ROLES.ASSISTANT, text);
+      setLastResponse((current) => `${current}${text}`);
+    },
+    onError: handleRealtimeError,
+    onPlaybackStart: () => setStatus(STATES.SPEAKING),
+    onPlaybackEnd: () => setStatus(STATES.IDLE),
+  });
+  const {
+    disconnect: disconnectRealtime,
+    startRecording: startRealtimeRecording,
+    stopRecording: stopRealtimeRecording,
+    stopPlayback: stopRealtimePlayback,
+    stopSession: stopRealtimeSession,
+    isConnected: isRealtimeConnected,
+    isRecording: isRealtimeRecording,
+    isPlaying: isRealtimePlaying,
+  } = realtimeSession;
 
   const appendTranscript = useCallback((role: Role, text: string) => {
     setTranscriptItems((items) => {
@@ -144,10 +198,21 @@ export const App = () => {
     onError: handleSpeechError,
   });
 
+  const isRealtimeMode = mode === MODES.REALTIME;
   const isBusy = status === STATES.THINKING || status === STATES.SPEAKING;
   const statusLabel = STATE_LABELS[status];
 
   const handleStart = useCallback(async () => {
+    if (isRealtimeMode) {
+      setErrorMessage('');
+      setStatus(STATES.LISTENING);
+      const started = await startRealtimeRecording();
+      if (!started) {
+        setStatus(STATES.ERROR);
+      }
+      return;
+    }
+
     if (!sttSupported) {
       setStatus(STATES.ERROR);
       setErrorMessage(ERRORS.STT_UNSUPPORTED);
@@ -164,37 +229,58 @@ export const App = () => {
       setStatus(STATES.ERROR);
       setErrorMessage(ERRORS.MIC_UNAVAILABLE);
     }
-  }, [startListening, startMeter, sttSupported]);
+  }, [isRealtimeMode, startListening, startMeter, startRealtimeRecording, sttSupported]);
 
   const handleStop = useCallback(async () => {
+    if (isRealtimeMode) {
+      await stopRealtimeRecording();
+      setLastResponse('');
+      setStatus(STATES.THINKING);
+      return;
+    }
     stopListening();
     await stopMeter();
     setStatus((current) => (current === STATES.LISTENING ? STATES.IDLE : current));
-  }, [stopListening, stopMeter]);
+  }, [isRealtimeMode, stopListening, stopMeter, stopRealtimeRecording]);
 
   const handleToggleListening = useCallback(() => {
-    if (isListening) {
+    const active = isRealtimeMode ? isRealtimeRecording : isListening;
+    if (active) {
       handleStop();
       return;
     }
     handleStart();
-  }, [handleStart, handleStop, isListening]);
+  }, [handleStart, handleStop, isListening, isRealtimeMode, isRealtimeRecording]);
 
   const handleSend = useCallback(() => {
     if (isBusy) {
       return;
     }
+    if (isRealtimeMode) {
+      return;
+    }
     handleFinalTranscript(inputText);
-  }, [handleFinalTranscript, inputText, isBusy]);
+  }, [handleFinalTranscript, inputText, isBusy, isRealtimeMode]);
 
   const handleClear = useCallback(() => {
     handleStop();
+    if (isRealtimeMode) {
+      void stopRealtimePlayback();
+    }
     setTranscriptItems([]);
     setLastResponse('');
     setInputText('');
     setErrorMessage('');
     setStatus(STATES.IDLE);
-  }, [handleStop]);
+  }, [handleStop, isRealtimeMode, stopRealtimePlayback]);
+
+  const handleStopSession = useCallback(() => {
+    if (!isRealtimeMode) {
+      return;
+    }
+    void stopRealtimeSession();
+    setStatus(STATES.IDLE);
+  }, [isRealtimeMode, stopRealtimeSession]);
 
   const stateBadge = useMemo(
     () => ({
@@ -209,6 +295,19 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
+    if (isRealtimeMode) {
+      setInputText('');
+    }
+  }, [isRealtimeMode]);
+
+  useEffect(() => {
+    if (!isRealtimeMode) {
+      disconnectRealtime();
+      setStatus(STATES.IDLE);
+    }
+  }, [disconnectRealtime, isRealtimeMode]);
+
+  useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute(THEME.ATTR, theme);
     }
@@ -220,6 +319,12 @@ export const App = () => {
   const handleToggleTheme = useCallback(() => {
     setTheme((current) => (current === THEME.DARK ? THEME.LIGHT : THEME.DARK));
   }, []);
+
+  const inputPlaceholder = isRealtimeMode ? UI.REALTIME_INPUT_PLACEHOLDER : UI.INPUT_PLACEHOLDER;
+
+  const listeningActive = isRealtimeMode ? isRealtimeRecording : isListening;
+  const stopDisabled =
+    !isRealtimeConnected && !isRealtimeRecording && !isRealtimePlaying;
 
   return (
     <div className="min-h-screen text-[var(--ink)]">
@@ -236,7 +341,11 @@ export const App = () => {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <ThemeToggle theme={theme} onToggle={handleToggleTheme} />
-            <ModeToggle mode={mode} onChange={setMode} />
+            <ModeToggle
+              mode={mode}
+              onChange={setMode}
+              showRealtime={config.realtime.enabled}
+            />
             <div className="flex items-center gap-3 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 py-2">
               <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {UI.STATUS_LABEL}
@@ -262,7 +371,7 @@ export const App = () => {
             <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] px-5 py-6 shadow-[0_30px_80px_rgba(0,0,0,0.12)] sm:px-6 sm:py-8">
               <div className="flex flex-col items-center gap-8">
                 <VoiceOrb
-                  isActive={isListening}
+                  isActive={listeningActive}
                   onClick={handleToggleListening}
                   disabled={isBusy}
                 />
@@ -280,9 +389,15 @@ export const App = () => {
               onChange={setInputText}
               onSend={handleSend}
               onToggleListening={handleToggleListening}
+              onStop={handleStopSession}
               onClear={handleClear}
-              isListening={isListening}
+              isListening={listeningActive}
               isBusy={isBusy}
+              inputDisabled={isRealtimeMode}
+              sendDisabled={isRealtimeMode}
+              placeholder={inputPlaceholder}
+              showStop={isRealtimeMode}
+              stopDisabled={stopDisabled}
             />
 
             <ResponsePanel text={lastResponse} />

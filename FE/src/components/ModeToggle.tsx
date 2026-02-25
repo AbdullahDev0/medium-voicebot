@@ -11,22 +11,33 @@ import type { ModeOption } from '../types';
 type ModeToggleProps = {
   mode: ModeOption;
   onChange: (mode: ModeOption) => void;
+  showRealtime?: boolean;
 };
 
-const MODE_OPTIONS = [
-  {
-    value: MODES.NORMAL,
-    label: MODE_LABELS[MODES.NORMAL],
-    hint: UI.MODE_HINT_NORMAL,
-  },
-  {
-    value: MODES.AGENT,
-    label: MODE_LABELS[MODES.AGENT],
-    hint: UI.MODE_HINT_AGENT,
-  },
-];
+const buildModeOptions = (showRealtime: boolean) => {
+  const options = [
+    {
+      value: MODES.NORMAL,
+      label: MODE_LABELS[MODES.NORMAL],
+      hint: UI.MODE_HINT_NORMAL,
+    },
+    {
+      value: MODES.AGENT,
+      label: MODE_LABELS[MODES.AGENT],
+      hint: UI.MODE_HINT_AGENT,
+    },
+  ];
+  if (showRealtime) {
+    options.push({
+      value: MODES.REALTIME,
+      label: MODE_LABELS[MODES.REALTIME],
+      hint: UI.MODE_HINT_REALTIME,
+    });
+  }
+  return options;
+};
 
-export const ModeToggle = ({ mode, onChange }: ModeToggleProps) => (
+export const ModeToggle = ({ mode, onChange, showRealtime = false }: ModeToggleProps) => (
   <div
     className="flex items-center gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] px-3 py-2"
     role="radiogroup"
@@ -36,7 +47,7 @@ export const ModeToggle = ({ mode, onChange }: ModeToggleProps) => (
       {UI.MODE_LABEL}
     </span>
     <div className="flex items-center gap-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-2)] p-1">
-      {MODE_OPTIONS.map((option) => {
+      {buildModeOptions(showRealtime).map((option) => {
         const isActive = mode === option.value;
         return (
           <button

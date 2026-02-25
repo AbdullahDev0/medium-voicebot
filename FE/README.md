@@ -9,5 +9,6 @@ Single-page React + Vite + Tailwind UI for the Voicebot Console. It captures mic
 2. Create your environment file.
    - Copy `.env.example` to `.env`.
    - Fill in `VITE_API_BASE_URL` to point at the backend.
+   - Set `VITE_REALTIME_ENABLED` and `VITE_REALTIME_WS_URL` to enable realtime voice.
 3. Start the dev server.
    - `npm run dev`

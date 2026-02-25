@@ -24,12 +24,16 @@ export const UI = {
   MODE_LABEL: 'Mode',
   MODE_NORMAL: 'Normal',
   MODE_AGENT: 'Agent',
+  MODE_REALTIME: 'Realtime',
   MODE_HINT_NORMAL: 'Direct',
   MODE_HINT_AGENT: 'Web search',
+  MODE_HINT_REALTIME: 'Voice',
   INPUT_LABEL: 'Message',
   INPUT_PLACEHOLDER: 'Speak or type a message',
+  REALTIME_INPUT_PLACEHOLDER: 'Realtime voice uses the mic controls',
   SEND_LABEL: 'Send',
   CLEAR_LABEL: 'Clear',
+  REALTIME_STOP_LABEL: 'Stop',
   RETRY_LABEL: 'Retry',
   EMPTY_TRANSCRIPT: 'No transcripts yet.',
   EMPTY_RESPONSE: 'No response yet.',
@@ -41,6 +45,7 @@ export const ARIA = {
   TOGGLE_MIC: 'Toggle microphone',
   SEND_MESSAGE: 'Send message',
   CLEAR_TRANSCRIPT: 'Clear transcript',
+  REALTIME_STOP: 'Stop realtime session',
   INPUT_MESSAGE: 'Message input',
   WAVEFORM: 'Audio waveform',
   VOICE_ORB: 'Voice orb',
@@ -63,11 +68,13 @@ export const THEME = {
 export const MODES = {
   NORMAL: 'normal',
   AGENT: 'agent',
+  REALTIME: 'realtime',
 };
 
 export const MODE_LABELS = {
   [MODES.NORMAL]: UI.MODE_NORMAL,
   [MODES.AGENT]: UI.MODE_AGENT,
+  [MODES.REALTIME]: UI.MODE_REALTIME,
 };
 
 export const STATES = {
@@ -177,15 +184,25 @@ export const ERRORS = {
   LLM_FAILED: 'LLM request failed.',
   LLM_EMPTY: 'No response text was returned.',
   TTS_UNSUPPORTED: 'Text-to-speech is not supported in this browser.',
+  REALTIME_DISABLED: 'Realtime voice is disabled.',
+  REALTIME_CONNECTION_FAILED: 'Realtime connection failed.',
+  REALTIME_SESSION_FAILED: 'Realtime session failed.',
+  REALTIME_STREAM_FAILED: 'Realtime stream failed.',
   MISSING_ENV: 'Missing required environment variables:',
 };
 
 export const ENV_KEYS = {
   API_BASE_URL: 'VITE_API_BASE_URL',
+  REALTIME_ENABLED: 'VITE_REALTIME_ENABLED',
+  REALTIME_WS_URL: 'VITE_REALTIME_WS_URL',
 };
 
 export const DELIMITERS = {
   COMMA_SPACE: ', ',
+};
+
+export const BOOL = {
+  TRUE: 'true',
 };
 
 export const LIMITS = {
@@ -200,4 +217,42 @@ export const TIME_FORMAT = {
     minute: '2-digit',
     second: '2-digit',
   } as const,
+};
+
+export const REALTIME = {
+  READY: 'realtime.ready',
+  ERROR: 'realtime.error',
+  CLOSED: 'realtime.closed',
+  TYPE_KEY: 'type',
+  MESSAGE_KEY: 'message',
+  CODE_KEY: 'code',
+  AUDIO_KEY: 'audio',
+  ITEM_ID_KEY: 'item_id',
+  RESPONSE_ID_KEY: 'response_id',
+  DELTA_KEY: 'delta',
+  TRANSCRIPT_KEY: 'transcript',
+  INPUT_AUDIO_CLEAR: 'input_audio_buffer.clear',
+  INPUT_AUDIO_APPEND: 'input_audio_buffer.append',
+  INPUT_AUDIO_COMMIT: 'input_audio_buffer.commit',
+  INPUT_AUDIO_SPEECH_STOPPED: 'input_audio_buffer.speech_stopped',
+  RESPONSE_CREATE: 'response.create',
+  RESPONSE_CANCEL: 'response.cancel',
+  OUTPUT_AUDIO_DELTA: 'response.output_audio.delta',
+  OUTPUT_AUDIO_DONE: 'response.output_audio.done',
+  OUTPUT_AUDIO_TRANSCRIPT_DELTA: 'response.output_audio_transcript.delta',
+  OUTPUT_AUDIO_TRANSCRIPT_DONE: 'response.output_audio_transcript.done',
+  INPUT_AUDIO_TRANSCRIPT_DELTA: 'conversation.item.input_audio_transcription.delta',
+  INPUT_AUDIO_TRANSCRIPT_FAILED: 'conversation.item.input_audio_transcription.failed',
+};
+
+export const REALTIME_AUDIO = {
+  TARGET_SAMPLE_RATE: 24000,
+  CHANNELS: 1,
+  BUFFER_SIZE: 4096,
+  INT16_MAX: 32767,
+  INT16_MIN: -32768,
+};
+
+export const REALTIME_TIMEOUTS = {
+  CONNECT_MS: 8000,
 };

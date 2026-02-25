@@ -17,6 +17,8 @@ This backend exposes a simple LLM gateway for the Voicebot Console frontend.
 - `PORT`: Backend port.
 - `CORS_ORIGIN`: Frontend origin allowed to call the API.
 - `USE_LOCAL_LLM`: Toggle local LLM usage (`true` or `false`).
+- `USE_REALTIME`: Toggle realtime voice gateway (`true` or `false`).
+- `USE_TOOLS`: Toggle tool usage (`true` or `false`).
 
 ### OpenAI
 
@@ -24,6 +26,15 @@ Used when `USE_LOCAL_LLM=false`:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
 - `OPENAI_BASE_URL`
+
+### OpenAI Realtime
+
+Used when `USE_REALTIME=true`:
+- `OPENAI_API_KEY`
+- `OPENAI_REALTIME_URL`
+- `OPENAI_REALTIME_MODEL`
+- `OPENAI_REALTIME_VOICE`
+- `OPENAI_REALTIME_TRANSCRIBE_MODEL` (optional, enables input transcription)
 
 ### Ollama (Local)
 
@@ -51,3 +62,6 @@ Used when `USE_LOCAL_LLM=true`:
 - `POST /api/llm/respond`
   - Request: `{ "input": "your prompt" }`
   - Response: `{ "text": "llm response" }`
+
+- `WS /ws/realtime`
+  - Realtime voice websocket gateway

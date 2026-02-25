@@ -37,19 +37,28 @@ const requireEnv = (keys: string[]) => {
 
 const useLocalLlm = normalizeBoolean(readEnv(ENV_KEYS.USE_LOCAL_LLM));
 const useTools = normalizeBoolean(readEnv(ENV_KEYS.USE_TOOLS));
+const useRealtime = normalizeBoolean(readEnv(ENV_KEYS.USE_REALTIME));
 const agentDebugLogs = normalizeBoolean(readEnv(ENV_KEYS.AGENT_DEBUG_LOGS));
 const toolsEnabled = useTools;
+const requiresOpenAiStandard = !useLocalLlm;
+const requiresOpenAiRealtime = useRealtime;
+const requiresOpenAiKey = requiresOpenAiStandard || requiresOpenAiRealtime;
 
 const env = requireEnv([
   ENV_KEYS.PORT,
   ENV_KEYS.CORS_ORIGIN,
-  ...(useLocalLlm
-    ? [ENV_KEYS.OLLAMA_BASE_URL, ENV_KEYS.OLLAMA_MODEL]
-    : [
-        ENV_KEYS.OPENAI_API_KEY,
-        ENV_KEYS.OPENAI_MODEL,
-        ENV_KEYS.OPENAI_BASE_URL,
-      ]),
+  ...(useLocalLlm ? [ENV_KEYS.OLLAMA_BASE_URL, ENV_KEYS.OLLAMA_MODEL] : []),
+  ...(requiresOpenAiKey ? [ENV_KEYS.OPENAI_API_KEY] : []),
+  ...(requiresOpenAiStandard
+    ? [ENV_KEYS.OPENAI_MODEL, ENV_KEYS.OPENAI_BASE_URL]
+    : []),
+  ...(requiresOpenAiRealtime
+    ? [
+        ENV_KEYS.OPENAI_REALTIME_URL,
+        ENV_KEYS.OPENAI_REALTIME_MODEL,
+        ENV_KEYS.OPENAI_REALTIME_VOICE,
+      ]
+    : []),
   ...(toolsEnabled ? [ENV_KEYS.BRAVE_API_KEY, ENV_KEYS.BRAVE_BASE_URL] : []),
 ]);
 
@@ -76,6 +85,15 @@ export const config = {
   },
   llm: {
     useLocal: useLocalLlm,
+  },
+  realtime: {
+    enabled: useRealtime,
+    apiKey: requiresOpenAiKey ? env[ENV_KEYS.OPENAI_API_KEY] : '',
+    url: requiresOpenAiRealtime ? env[ENV_KEYS.OPENAI_REALTIME_URL] : '',
+    model: requiresOpenAiRealtime ? env[ENV_KEYS.OPENAI_REALTIME_MODEL] : '',
+    voice: requiresOpenAiRealtime ? env[ENV_KEYS.OPENAI_REALTIME_VOICE] : '',
+    transcriptionModel:
+      readEnv(ENV_KEYS.OPENAI_REALTIME_TRANSCRIBE_MODEL) ?? '',
   },
   tools: {
     enabled: toolsEnabled,
