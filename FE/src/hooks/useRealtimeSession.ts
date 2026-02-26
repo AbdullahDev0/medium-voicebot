@@ -69,6 +69,14 @@ const getItemId = (event: RealtimeEvent) => {
   return globalThis.crypto?.randomUUID?.() ?? String(Date.now());
 };
 
+const getEventItemId = (event: RealtimeEvent) => {
+  const itemId = event[REALTIME.ITEM_ID_KEY];
+  if (typeof itemId === 'string' && itemId) {
+    return itemId;
+  }
+  return undefined;
+};
+
 export const useRealtimeSession = ({
   onUserTranscriptDelta,
   onAssistantTranscriptDelta,
@@ -97,6 +105,10 @@ export const useRealtimeSession = ({
   const playbackContextRef = useRef<AudioContext | null>(null);
   const nextPlaybackTimeRef = useRef(0);
   const playbackEndTimerRef = useRef<number | null>(null);
+  const currentAssistantItemIdRef = useRef<string | null>(null);
+  const currentItemStartTimeRef = useRef<number | null>(null);
+  const currentItemDurationRef = useRef(0);
+  const mutedItemIdRef = useRef<string | null>(null);
   const isRecordingRef = useRef(false);
   const isPlayingRef = useRef(false);
 
@@ -121,6 +133,18 @@ export const useRealtimeSession = ({
       playbackEndTimerRef.current = null;
     }
   };
+
+  const getPlayedAudioMs = useCallback(() => {
+    const context = playbackContextRef.current;
+    const startTime = currentItemStartTimeRef.current;
+    if (!context || startTime === null) {
+      return null;
+    }
+    const playedSeconds = Math.max(0, context.currentTime - startTime);
+    const totalSeconds = currentItemDurationRef.current;
+    const clampedSeconds = Math.min(playedSeconds, totalSeconds);
+    return Math.floor(clampedSeconds * 1000);
+  }, []);
 
   const resolveWaiters = useCallback((ready: boolean) => {
     readyWaitersRef.current.forEach((resolve) => resolve(ready));
@@ -170,10 +194,13 @@ export const useRealtimeSession = ({
       playbackContextRef.current = null;
     }
     nextPlaybackTimeRef.current = 0;
+    currentAssistantItemIdRef.current = null;
+    currentItemStartTimeRef.current = null;
+    currentItemDurationRef.current = 0;
   }, []);
 
   const playAudioChunk = useCallback(
-    (base64: string) => {
+    (base64: string, itemId?: string) => {
       const context = ensurePlaybackContext();
       const pcm16 = base64ToPcm16(base64);
       const floatData = pcm16ToFloat(pcm16);
@@ -187,6 +214,14 @@ export const useRealtimeSession = ({
       source.buffer = buffer;
       source.connect(context.destination);
       const startTime = Math.max(context.currentTime, nextPlaybackTimeRef.current);
+      if (itemId) {
+        if (currentAssistantItemIdRef.current !== itemId) {
+          currentAssistantItemIdRef.current = itemId;
+          currentItemStartTimeRef.current = startTime;
+          currentItemDurationRef.current = 0;
+        }
+        currentItemDurationRef.current += buffer.duration;
+      }
       source.start(startTime);
       nextPlaybackTimeRef.current = startTime + buffer.duration;
       if (!isPlayingRef.current) {
@@ -206,6 +241,23 @@ export const useRealtimeSession = ({
     socket.send(JSON.stringify(event));
     return true;
   }, []);
+
+  const handleBargeIn = useCallback(() => {
+    const itemId = currentAssistantItemIdRef.current;
+    if (itemId) {
+      const playedMs = getPlayedAudioMs();
+      if (playedMs !== null) {
+        sendEvent({
+          type: REALTIME.CONVERSATION_ITEM_TRUNCATE,
+          item_id: itemId,
+          content_index: 0,
+          audio_end_ms: playedMs,
+        });
+      }
+      mutedItemIdRef.current = itemId;
+    }
+    void stopPlayback();
+  }, [getPlayedAudioMs, sendEvent, stopPlayback]);
 
   const stopCapture = useCallback(async () => {
     if (captureProcessorRef.current) {
@@ -319,10 +371,21 @@ export const useRealtimeSession = ({
         resolveWaiters(false);
         return;
       }
+      if (type === REALTIME.INPUT_AUDIO_SPEECH_STARTED) {
+        handleBargeIn();
+        return;
+      }
       if (type === REALTIME.OUTPUT_AUDIO_DELTA) {
+        const itemId = getEventItemId(parsed);
+        if (itemId && mutedItemIdRef.current && itemId === mutedItemIdRef.current) {
+          return;
+        }
+        if (itemId && mutedItemIdRef.current && itemId !== mutedItemIdRef.current) {
+          mutedItemIdRef.current = null;
+        }
         const audio = getAudioValue(parsed);
         if (audio) {
-          playAudioChunk(audio);
+          playAudioChunk(audio, itemId);
         }
         return;
       }
@@ -333,9 +396,8 @@ export const useRealtimeSession = ({
         if (!hasPendingAudioRef.current) {
           return;
         }
-        const committed = sendEvent({ type: REALTIME.INPUT_AUDIO_COMMIT });
         const responded = sendEvent({ type: REALTIME.RESPONSE_CREATE });
-        if (committed && responded) {
+        if (responded) {
           hasPendingAudioRef.current = false;
         }
         return;
@@ -383,6 +445,7 @@ export const useRealtimeSession = ({
       readyWaitersRef.current.push(resolve);
     });
   }, [
+    handleBargeIn,
     isConnected,
     playAudioChunk,
     resolveWaiters,

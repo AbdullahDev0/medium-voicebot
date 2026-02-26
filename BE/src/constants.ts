@@ -111,6 +111,14 @@ export const REALTIME = {
   OUTPUT_FORMAT_PCM16: 'pcm16',
   OUTPUT_MODALITIES_AUDIO: ['audio'],
   TURN_DETECTION_DISABLED: null,
+  TURN_DETECTION_SERVER_VAD: {
+    type: 'server_vad',
+    threshold: 0.5,
+    prefix_padding_ms: 300,
+    silence_duration_ms: 500,
+    create_response: false,
+    interrupt_response: true,
+  },
 };
 
 export const REALTIME_KEYS = {
@@ -135,12 +143,14 @@ export const REALTIME_EVENTS = {
   INPUT_AUDIO_CLEAR: 'input_audio_buffer.clear',
   INPUT_AUDIO_APPEND: 'input_audio_buffer.append',
   INPUT_AUDIO_COMMIT: 'input_audio_buffer.commit',
+  INPUT_AUDIO_SPEECH_STARTED: 'input_audio_buffer.speech_started',
   OUTPUT_AUDIO_DELTA: 'response.output_audio.delta',
   OUTPUT_AUDIO_DONE: 'response.output_audio.done',
   OUTPUT_AUDIO_TRANSCRIPT_DELTA: 'response.output_audio_transcript.delta',
   OUTPUT_AUDIO_TRANSCRIPT_DONE: 'response.output_audio_transcript.done',
   INPUT_AUDIO_TRANSCRIPT_DELTA: 'conversation.item.input_audio_transcription.delta',
   INPUT_AUDIO_TRANSCRIPT_FAILED: 'conversation.item.input_audio_transcription.failed',
+  CONVERSATION_ITEM_TRUNCATE: 'conversation.item.truncate',
 };
 
 export const REALTIME_RELAY = {
