@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ERRORS, REALTIME, REALTIME_AUDIO, REALTIME_TIMEOUTS } from '../constants';
+import { ERRORS, LOGS, REALTIME, REALTIME_AUDIO, REALTIME_TIMEOUTS } from '../constants';
 import { config } from '../config';
 import {
   base64ToPcm16,
@@ -24,6 +24,7 @@ type UseRealtimeSessionOptions = {
   onError?: (message: string) => void;
   onPlaybackStart?: () => void;
   onPlaybackEnd?: () => void;
+  wsUrl?: string;
 };
 
 type RealtimeEvent = Record<string, unknown> & { type?: string };
@@ -83,6 +84,7 @@ export const useRealtimeSession = ({
   onError,
   onPlaybackStart,
   onPlaybackEnd,
+  wsUrl,
 }: UseRealtimeSessionOptions) => {
   const socketRef = useRef<WebSocket | null>(null);
   const isConnectingRef = useRef(false);
@@ -111,6 +113,49 @@ export const useRealtimeSession = ({
   const mutedItemIdRef = useRef<string | null>(null);
   const isRecordingRef = useRef(false);
   const isPlayingRef = useRef(false);
+  const responseActiveRef = useRef(false);
+  const audioAppendLogRef = useRef({ last: 0, count: 0 });
+
+  const logDebug = useCallback((message: string) => {
+    if (config.logging.debug) {
+      console.log(message);
+    }
+  }, []);
+
+  const logEvent = useCallback(
+    (prefix: string, eventType?: string) => {
+      if (!eventType) {
+        return;
+      }
+      logDebug(`${prefix}${eventType}`);
+    },
+    [logDebug],
+  );
+
+  const logTranscript = useCallback(
+    (prefix: string, text: string) => {
+      if (!text) {
+        return;
+      }
+      logDebug(`${prefix}${text}`);
+    },
+    [logDebug],
+  );
+
+  const logAudioAppend = useCallback(() => {
+    if (!config.logging.debug) {
+      return;
+    }
+    const state = audioAppendLogRef.current;
+    state.count += 1;
+    const now = Date.now();
+    if (now - state.last < 1500) {
+      return;
+    }
+    state.last = now;
+    logDebug(`${LOGS.REALTIME_AUDIO_APPEND}${state.count}`);
+    state.count = 0;
+  }, [logDebug]);
 
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -233,18 +278,33 @@ export const useRealtimeSession = ({
     [ensurePlaybackContext]
   );
 
-  const sendEvent = useCallback((event: RealtimeEvent) => {
-    const socket = socketRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      return false;
-    }
-    socket.send(JSON.stringify(event));
-    return true;
-  }, []);
+  const sendEvent = useCallback(
+    (event: RealtimeEvent) => {
+      const socket = socketRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      const eventType = event[REALTIME.TYPE_KEY];
+      if (typeof eventType === 'string') {
+        if (eventType === REALTIME.INPUT_AUDIO_APPEND) {
+          logAudioAppend();
+        } else {
+          logEvent(LOGS.REALTIME_EVENT_OUT, eventType);
+        }
+      }
+      socket.send(JSON.stringify(event));
+      return true;
+    },
+    [logAudioAppend, logEvent],
+  );
 
   const handleBargeIn = useCallback(() => {
     const itemId = currentAssistantItemIdRef.current;
     if (itemId) {
+      if (responseActiveRef.current) {
+        sendEvent({ type: REALTIME.RESPONSE_CANCEL });
+        responseActiveRef.current = false;
+      }
       const playedMs = getPlayedAudioMs();
       if (playedMs !== null) {
         sendEvent({
@@ -313,6 +373,14 @@ export const useRealtimeSession = ({
   const connect = useCallback(async () => {
     if (!config.realtime.enabled) {
       const message = ERRORS.REALTIME_DISABLED;
+      logDebug(LOGS.REALTIME_DISABLED);
+      callbacksRef.current.onError?.(message);
+      return false;
+    }
+    const targetUrl = wsUrl ?? config.realtime.wsUrl;
+    if (!targetUrl) {
+      const message = ERRORS.REALTIME_SESSION_FAILED;
+      logDebug(LOGS.REALTIME_MISSING_URL);
       callbacksRef.current.onError?.(message);
       return false;
     }
@@ -329,7 +397,8 @@ export const useRealtimeSession = ({
 
     setIsConnecting(true);
     isConnectingRef.current = true;
-    const socket = new WebSocket(config.realtime.wsUrl);
+    logDebug(`${LOGS.REALTIME_CONNECTING}${targetUrl}`);
+    const socket = new WebSocket(targetUrl);
     socketRef.current = socket;
 
     connectTimeoutRef.current = window.setTimeout(() => {
@@ -342,6 +411,7 @@ export const useRealtimeSession = ({
     socket.onopen = () => {
       setIsConnecting(false);
       isConnectingRef.current = false;
+      logDebug(LOGS.REALTIME_OPEN);
     };
 
     socket.onmessage = (event) => {
@@ -351,6 +421,17 @@ export const useRealtimeSession = ({
         return;
       }
       const type = parsed[REALTIME.TYPE_KEY];
+      if (typeof type === 'string') {
+        logEvent(LOGS.REALTIME_EVENT_IN, type);
+      } else {
+        logDebug(LOGS.REALTIME_EVENT_UNPARSED);
+      }
+      if (type === REALTIME.RESPONSE_CREATED) {
+        responseActiveRef.current = true;
+      }
+      if (type === REALTIME.RESPONSE_DONE) {
+        responseActiveRef.current = false;
+      }
       if (type === REALTIME.READY) {
         setIsConnected(true);
         resolveWaiters(true);
@@ -359,6 +440,7 @@ export const useRealtimeSession = ({
       if (type === REALTIME.CLOSED) {
         setIsConnected(false);
         resolveWaiters(false);
+        responseActiveRef.current = false;
         return;
       }
       if (type === REALTIME.ERROR) {
@@ -369,6 +451,7 @@ export const useRealtimeSession = ({
             : ERRORS.REALTIME_STREAM_FAILED;
         callbacksRef.current.onError?.(message);
         resolveWaiters(false);
+        responseActiveRef.current = false;
         return;
       }
       if (type === REALTIME.INPUT_AUDIO_SPEECH_STARTED) {
@@ -410,6 +493,7 @@ export const useRealtimeSession = ({
         const text = getTextValue(parsed);
         if (text) {
           callbacksRef.current.onAssistantTranscriptDelta?.(getItemId(parsed), text);
+          logTranscript(LOGS.REALTIME_TRANSCRIPT_OUT, text);
         }
         return;
       }
@@ -417,6 +501,7 @@ export const useRealtimeSession = ({
         const text = getTextValue(parsed);
         if (text) {
           callbacksRef.current.onUserTranscriptDelta?.(getItemId(parsed), text);
+          logTranscript(LOGS.REALTIME_TRANSCRIPT_IN, text);
         }
         return;
       }
@@ -429,6 +514,7 @@ export const useRealtimeSession = ({
       setIsConnecting(false);
       isConnectingRef.current = false;
       resolveWaiters(false);
+      logDebug(LOGS.REALTIME_ERROR);
       callbacksRef.current.onError?.(ERRORS.REALTIME_CONNECTION_FAILED);
     };
 
@@ -440,6 +526,8 @@ export const useRealtimeSession = ({
       socketRef.current = null;
       void stopRecording();
       void stopPlayback();
+      responseActiveRef.current = false;
+      logDebug(LOGS.REALTIME_CLOSE);
     };
     return new Promise<boolean>((resolve) => {
       readyWaitersRef.current.push(resolve);
@@ -447,12 +535,16 @@ export const useRealtimeSession = ({
   }, [
     handleBargeIn,
     isConnected,
+    logDebug,
+    logEvent,
+    logTranscript,
     playAudioChunk,
     resolveWaiters,
     schedulePlaybackEnd,
     sendEvent,
     stopPlayback,
     stopRecording,
+    wsUrl,
   ]);
 
   const startRecording = useCallback(async () => {
@@ -474,7 +566,10 @@ export const useRealtimeSession = ({
     }
 
     await stopPlayback();
-    sendEvent({ type: REALTIME.RESPONSE_CANCEL });
+    if (responseActiveRef.current) {
+      sendEvent({ type: REALTIME.RESPONSE_CANCEL });
+      responseActiveRef.current = false;
+    }
     const cleared = sendEvent({ type: REALTIME.INPUT_AUDIO_CLEAR });
     hasPendingAudioRef.current = false;
     if (!cleared) {
@@ -542,7 +637,10 @@ export const useRealtimeSession = ({
     setIsRecording(false);
     await stopCapture();
     await stopPlayback();
-    sendEvent({ type: REALTIME.RESPONSE_CANCEL });
+    if (responseActiveRef.current) {
+      sendEvent({ type: REALTIME.RESPONSE_CANCEL });
+      responseActiveRef.current = false;
+    }
     sendEvent({ type: REALTIME.INPUT_AUDIO_CLEAR });
     if (socketRef.current) {
       socketRef.current.close();

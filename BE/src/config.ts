@@ -6,7 +6,8 @@
  */
 
 import { config as loadEnv } from 'dotenv';
-import { BOOL, DEFAULTS, DELIMITERS, ENV_KEYS, ERRORS } from './constants';
+import { resolve } from 'path';
+import { BOOL, DEFAULTS, DELIMITERS, ENV_KEYS, ERRORS, RAG } from './constants';
 
 loadEnv();
 
@@ -36,13 +37,19 @@ const requireEnv = (keys: string[]) => {
 };
 
 const useLocalLlm = normalizeBoolean(readEnv(ENV_KEYS.USE_LOCAL_LLM));
-const useTools = normalizeBoolean(readEnv(ENV_KEYS.USE_TOOLS));
+const useWebSearchTools = normalizeBoolean(readEnv(ENV_KEYS.USE_TOOLS));
+const useRag = normalizeBoolean(readEnv(ENV_KEYS.USE_RAG));
 const useRealtime = normalizeBoolean(readEnv(ENV_KEYS.USE_REALTIME));
 const agentDebugLogs = normalizeBoolean(readEnv(ENV_KEYS.AGENT_DEBUG_LOGS));
-const toolsEnabled = useTools;
+const toolsEnabled = useWebSearchTools || useRag;
 const requiresOpenAiStandard = !useLocalLlm;
 const requiresOpenAiRealtime = useRealtime;
 const requiresOpenAiKey = requiresOpenAiStandard || requiresOpenAiRealtime;
+const propertiesPathValue = readEnv(ENV_KEYS.PROPERTIES_DATA_PATH);
+const propertiesDataPath =
+  typeof propertiesPathValue === 'string' && propertiesPathValue.trim()
+    ? propertiesPathValue
+    : resolve(process.cwd(), RAG.PROPERTIES_DEFAULT_PATH);
 
 const env = requireEnv([
   ENV_KEYS.PORT,
@@ -59,7 +66,9 @@ const env = requireEnv([
         ENV_KEYS.OPENAI_REALTIME_VOICE,
       ]
     : []),
-  ...(toolsEnabled ? [ENV_KEYS.BRAVE_API_KEY, ENV_KEYS.BRAVE_BASE_URL] : []),
+  ...(useWebSearchTools
+    ? [ENV_KEYS.BRAVE_API_KEY, ENV_KEYS.BRAVE_BASE_URL]
+    : []),
 ]);
 
 const portValue = Number(env[ENV_KEYS.PORT]);
@@ -97,6 +106,12 @@ export const config = {
   },
   tools: {
     enabled: toolsEnabled,
+    webSearchEnabled: useWebSearchTools,
+    ragEnabled: useRag,
+  },
+  rag: {
+    enabled: useRag,
+    dataPath: propertiesDataPath,
   },
   logging: {
     agentDebug: agentDebugLogs,
@@ -114,7 +129,7 @@ export const config = {
         model: env[ENV_KEYS.OLLAMA_MODEL],
       }
     : null,
-  brave: toolsEnabled
+  brave: useWebSearchTools
     ? {
         apiKey: env[ENV_KEYS.BRAVE_API_KEY],
         baseUrl: env[ENV_KEYS.BRAVE_BASE_URL],

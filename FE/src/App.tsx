@@ -13,6 +13,7 @@ import {
   ERRORS,
   LIMITS,
   MODES,
+  PROPERTIES_MODES,
   ROLES,
   SPEECH_ERRORS,
   STATE_LABELS,
@@ -23,6 +24,7 @@ import {
 import { config } from './config';
 import { ControlBar } from './components/ControlBar';
 import { ModeToggle } from './components/ModeToggle';
+import { PropertiesModeToggle } from './components/PropertiesModeToggle';
 import { ResponsePanel } from './components/ResponsePanel';
 import { StateMachine } from './components/StateMachine';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -35,7 +37,14 @@ import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { requestAssistantResponse } from './services/llm';
 import { formatTime } from './utils/time';
-import type { ModeOption, Role, TranscriptItem, ThemeOption, VoiceState } from './types';
+import type {
+  ModeOption,
+  PropertiesModeOption,
+  Role,
+  TranscriptItem,
+  ThemeOption,
+  VoiceState,
+} from './types';
 
 const createTranscriptItem = (role: Role, text: string): TranscriptItem => ({
   id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
@@ -53,6 +62,9 @@ export const App = () => {
   const [lastResponse, setLastResponse] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [mode, setMode] = useState<ModeOption>(MODES.NORMAL);
+  const [propertiesMode, setPropertiesMode] = useState<PropertiesModeOption>(
+    PROPERTIES_MODES.CHAT,
+  );
   const [theme, setTheme] = useState<ThemeOption>(() => {
     if (typeof window === 'undefined') {
       return THEME.LIGHT;
@@ -97,6 +109,13 @@ export const App = () => {
     setStatus(STATES.ERROR);
   }, []);
 
+  const isPropertiesMode = mode === MODES.PROPERTIES;
+  const isPropertiesRealtime =
+    isPropertiesMode && propertiesMode === PROPERTIES_MODES.REALTIME;
+  const realtimeWsUrl = isPropertiesRealtime
+    ? config.realtime.propertiesWsUrl
+    : config.realtime.wsUrl;
+
   const realtimeSession = useRealtimeSession({
     onUserTranscriptDelta: (id, text) => {
       upsertTranscriptDelta(id, ROLES.USER, text);
@@ -108,6 +127,7 @@ export const App = () => {
     onError: handleRealtimeError,
     onPlaybackStart: () => setStatus(STATES.SPEAKING),
     onPlaybackEnd: () => setStatus(STATES.IDLE),
+    wsUrl: realtimeWsUrl,
   });
   const {
     disconnect: disconnectRealtime,
@@ -198,7 +218,7 @@ export const App = () => {
     onError: handleSpeechError,
   });
 
-  const isRealtimeMode = mode === MODES.REALTIME;
+  const isRealtimeMode = mode === MODES.REALTIME || isPropertiesRealtime;
   const isBusy = status === STATES.THINKING || status === STATES.SPEAKING;
   const statusLabel = STATE_LABELS[status];
 
@@ -344,8 +364,16 @@ export const App = () => {
             <ModeToggle
               mode={mode}
               onChange={setMode}
+              showRag={config.rag.enabled}
               showRealtime={config.realtime.enabled}
             />
+            {mode === MODES.PROPERTIES ? (
+              <PropertiesModeToggle
+                mode={propertiesMode}
+                onChange={setPropertiesMode}
+                showRealtime={config.realtime.enabled}
+              />
+            ) : null}
             <div className="flex items-center gap-3 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 py-2">
               <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
                 {UI.STATUS_LABEL}

@@ -8,9 +8,10 @@
 import { Module } from '@nestjs/common';
 import { ToolsService } from './tools.service';
 import { SearchModule } from '../search/search.module';
+import { RagModule } from '../rag/rag.module';
 
 @Module({
-  imports: [SearchModule],
+  imports: [SearchModule, RagModule],
   providers: [ToolsService],
   exports: [ToolsService],
 })

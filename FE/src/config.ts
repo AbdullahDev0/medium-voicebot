@@ -25,18 +25,29 @@ const requireEnv = (keys: string[]) => {
 };
 
 const realtimeEnabled = normalizeBoolean(readEnv(ENV_KEYS.REALTIME_ENABLED));
+const ragEnabled = normalizeBoolean(readEnv(ENV_KEYS.RAG_ENABLED));
+const debugEnabled = normalizeBoolean(readEnv(ENV_KEYS.DEBUG_LOGS));
 
 const env = requireEnv([
   ENV_KEYS.API_BASE_URL,
   ...(realtimeEnabled ? [ENV_KEYS.REALTIME_WS_URL] : []),
+  ...(realtimeEnabled && ragEnabled ? [ENV_KEYS.REALTIME_PROPERTIES_WS_URL] : []),
 ]);
 
 export const config = {
   api: {
     baseUrl: env[ENV_KEYS.API_BASE_URL],
   },
+  logging: {
+    debug: debugEnabled,
+  },
+  rag: {
+    enabled: ragEnabled,
+  },
   realtime: {
     enabled: realtimeEnabled,
     wsUrl: realtimeEnabled ? env[ENV_KEYS.REALTIME_WS_URL] : '',
+    propertiesWsUrl:
+      realtimeEnabled && ragEnabled ? env[ENV_KEYS.REALTIME_PROPERTIES_WS_URL] : '',
   },
 };

@@ -18,7 +18,12 @@ export const requestAssistantResponse = async ({
   input: string;
   mode: ModeOption;
 }) => {
-  const path = mode === MODES.AGENT ? API_PATHS.LLM_AGENT : API_PATHS.LLM_RESPOND;
+  const path =
+    mode === MODES.AGENT
+      ? API_PATHS.LLM_AGENT
+      : mode === MODES.PROPERTIES
+        ? API_PATHS.LLM_PROPERTIES
+        : API_PATHS.LLM_RESPOND;
   const response = await fetch(`${config.api.baseUrl}${path}`,
     {
       method: HTTP.METHOD_POST,

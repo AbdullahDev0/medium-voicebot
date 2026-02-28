@@ -11,6 +11,7 @@ export const API = {
   LLM: 'llm',
   RESPOND: 'respond',
   AGENT: 'agent',
+  PROPERTIES: 'properties',
   REQUEST_INPUT_KEY: 'input',
   RESPONSE_TEXT_KEY: 'text',
   RESPONSE_STATUS_KEY: 'status',
@@ -21,6 +22,7 @@ export const ENV_KEYS = {
   CORS_ORIGIN: 'CORS_ORIGIN',
   USE_LOCAL_LLM: 'USE_LOCAL_LLM',
   USE_TOOLS: 'USE_TOOLS',
+  USE_RAG: 'USE_RAG',
   USE_REALTIME: 'USE_REALTIME',
   AGENT_DEBUG_LOGS: 'AGENT_DEBUG_LOGS',
   OLLAMA_BASE_URL: 'OLLAMA_BASE_URL',
@@ -32,6 +34,7 @@ export const ENV_KEYS = {
   OPENAI_REALTIME_MODEL: 'OPENAI_REALTIME_MODEL',
   OPENAI_REALTIME_VOICE: 'OPENAI_REALTIME_VOICE',
   OPENAI_REALTIME_TRANSCRIBE_MODEL: 'OPENAI_REALTIME_TRANSCRIBE_MODEL',
+  PROPERTIES_DATA_PATH: 'PROPERTIES_DATA_PATH',
   BRAVE_API_KEY: 'BRAVE_API_KEY',
   BRAVE_BASE_URL: 'BRAVE_BASE_URL',
   BRAVE_RESULT_COUNT: 'BRAVE_RESULT_COUNT',
@@ -47,16 +50,21 @@ export const ERRORS = {
   TOOL_UNSUPPORTED: 'Tool is not supported.',
   SEARCH_FAILED: 'Search request failed.',
   TOOLS_DISABLED: 'Tooling is disabled.',
+  RAG_DISABLED: 'RAG is disabled.',
+  RAG_DATA_LOAD_FAILED: 'RAG data load failed.',
+  RAG_QUERY_EMPTY: 'RAG query is empty.',
   AGENT_FAILED: 'Agent request failed.',
   AGENT_COERCED_NO_ANSWER: 'No usable answer was returned by the agent.',
   REALTIME_DISABLED: 'Realtime voice is disabled.',
   REALTIME_CONNECTION_FAILED: 'Realtime connection failed.',
   REALTIME_SESSION_FAILED: 'Realtime session failed.',
   REALTIME_CLIENT_INVALID: 'Realtime client event is invalid.',
+  REALTIME_TOOL_FAILED: 'Realtime tool call failed.',
 };
 
 export const DELIMITERS = {
   COMMA_SPACE: ', ',
+  SPACE: ' ',
 };
 
 export const HTTP = {
@@ -88,6 +96,7 @@ export const OPENAI = {
   OUTPUT_MESSAGE_TYPE: 'message',
   OUTPUT_TEXT_TYPE: 'output_text',
   TOOLS_KEY: 'tools',
+  TOOL_CHOICE_KEY: 'tool_choice',
   INSTRUCTIONS_KEY: 'instructions',
   PREVIOUS_RESPONSE_ID_KEY: 'previous_response_id',
   TOOL_TYPE_FUNCTION: 'function',
@@ -105,8 +114,13 @@ export const OPENAI = {
 
 export const REALTIME = {
   WS_PATH: '/ws/realtime',
+  PROPERTIES_WS_PATH: '/ws/realtime/properties',
   QUERY_MODEL_KEY: 'model',
   SESSION_TYPE: 'realtime',
+  AUDIO_FORMAT_PCM: 'audio/pcm',
+  AUDIO_SAMPLE_RATE: 24000,
+  TOOL_CHOICE_AUTO: 'auto',
+  ERROR_TOKEN: 'error',
   INPUT_FORMAT_PCM16: 'pcm16',
   OUTPUT_FORMAT_PCM16: 'pcm16',
   OUTPUT_MODALITIES_AUDIO: ['audio'],
@@ -125,6 +139,12 @@ export const REALTIME_KEYS = {
   TYPE: 'type',
   EVENT_ID: 'event_id',
   AUDIO: 'audio',
+  AUDIO_INPUT: 'input',
+  AUDIO_OUTPUT: 'output',
+  AUDIO_FORMAT: 'format',
+  AUDIO_FORMAT_TYPE: 'type',
+  AUDIO_FORMAT_RATE: 'rate',
+  AUDIO_TRANSCRIPTION: 'transcription',
   SESSION: 'session',
   RESPONSE: 'response',
   MODEL: 'model',
@@ -134,12 +154,15 @@ export const REALTIME_KEYS = {
   VOICE: 'voice',
   TURN_DETECTION: 'turn_detection',
   INPUT_AUDIO_TRANSCRIPTION: 'input_audio_transcription',
+  ITEM: 'item',
 };
 
 export const REALTIME_EVENTS = {
   SESSION_UPDATE: 'session.update',
   RESPONSE_CREATE: 'response.create',
+  RESPONSE_CREATED: 'response.created',
   RESPONSE_CANCEL: 'response.cancel',
+  RESPONSE_DONE: 'response.done',
   INPUT_AUDIO_CLEAR: 'input_audio_buffer.clear',
   INPUT_AUDIO_APPEND: 'input_audio_buffer.append',
   INPUT_AUDIO_COMMIT: 'input_audio_buffer.commit',
@@ -151,6 +174,8 @@ export const REALTIME_EVENTS = {
   INPUT_AUDIO_TRANSCRIPT_DELTA: 'conversation.item.input_audio_transcription.delta',
   INPUT_AUDIO_TRANSCRIPT_FAILED: 'conversation.item.input_audio_transcription.failed',
   CONVERSATION_ITEM_TRUNCATE: 'conversation.item.truncate',
+  CONVERSATION_ITEM_CREATE: 'conversation.item.create',
+  RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE: 'response.function_call_arguments.done',
 };
 
 export const REALTIME_RELAY = {
@@ -187,11 +212,13 @@ export const BRAVE = {
 
 export const TOOLS = {
   WEB_SEARCH: 'web_search',
+  PROPERTY_SEARCH: 'search_properties',
 };
 
 export const TOOLING = {
   QUERY_KEY: 'query',
   COUNT_KEY: 'count',
+  TOP_K_KEY: 'top_k',
   RESULTS_KEY: 'results',
   TOOL_INPUT_TYPE: 'object',
   TOOL_STRING_TYPE: 'string',
@@ -205,24 +232,62 @@ export const TOOLING = {
   SCHEMA_DEFAULT_KEY: 'default',
   TOOL_INSTRUCTIONS:
     'Use the web_search tool when you need up-to-date or factual information from the web. Provide JSON input with a "query" string and optional "count" number. If the user does not need web data, respond normally.',
+  PROPERTY_TOOL_INSTRUCTIONS:
+    'You are a property listing assistant for a real estate agency. Use the search_properties tool for any request about listings, neighborhoods, prices, features, or availability. Answer only with information from the search_properties results. If the results are empty or insufficient, ask a concise follow-up question about location, budget, beds/baths, or property type. Do not invent listings or details.',
   WEB_SEARCH_DESCRIPTION:
     'Search the web for relevant, up-to-date information.',
   WEB_SEARCH_QUERY_DESCRIPTION: 'Search query for the web.',
   WEB_SEARCH_COUNT_DESCRIPTION: 'Number of results to return.',
+  PROPERTY_SEARCH_DESCRIPTION:
+    'Search local property listings stored in JSON files.',
+  PROPERTY_SEARCH_QUERY_DESCRIPTION:
+    'Search query describing desired property features, location, or budget.',
+  PROPERTY_SEARCH_TOP_K_DESCRIPTION: 'Number of property results to return.',
 };
 
 export const DEFAULTS = {
   BRAVE_RESULT_COUNT: 5,
+  PROPERTY_RESULT_COUNT: 5,
 };
 
 export const LIMITS = {
   TOOL_MIN_COUNT: 3,
   TOOL_MAX_COUNT: 7,
+  PROPERTY_MIN_COUNT: 1,
+  PROPERTY_MAX_COUNT: 8,
   AGENT_MAX_STEPS: 4,
   AGENT_JSON_INDENT: 2,
   AGENT_TEMPERATURE: 0.2,
   AGENT_NUM_PREDICT: 220,
   AGENT_LOG_TRUNCATE: 600,
+};
+
+export const RAG = {
+  PROPERTIES_DEFAULT_PATH: 'data/properties.json',
+  FILE_ENCODING: 'utf8' as const,
+  MIN_TOKEN_LENGTH: 2,
+  STOP_WORDS: [
+    'a',
+    'an',
+    'and',
+    'are',
+    'as',
+    'at',
+    'be',
+    'by',
+    'for',
+    'from',
+    'in',
+    'is',
+    'it',
+    'near',
+    'of',
+    'on',
+    'or',
+    'the',
+    'to',
+    'with',
+  ],
 };
 
 export const AGENT = {
@@ -242,12 +307,14 @@ export const AGENT = {
   BLOCK_SEPARATOR: '\n\n',
   SYSTEM_PROMPT:
     'You are a tool-using assistant.\n\nYou MUST respond with exactly one JSON object and nothing else (no markdown, no commentary).\n\nTo use web search:\n{"type":"tool","name":"web_search","arguments":{"query":"...","count":5}}\n\nTo answer the user:\n{"type":"final","answer":"..."}\n\nRules:\n- Use web_search when you need up-to-date info, facts, or verification.\n- When using web_search, choose a count between 3 and 7.\n- After receiving results, respond with a tool call or final answer.\n- Use only the provided search results; do not invent citations.',
+  PROPERTY_SYSTEM_PROMPT:
+    'You are a property listing assistant for a real estate agency.\n\nYou MUST respond with exactly one JSON object and nothing else (no markdown, no commentary).\n\nTo search listings:\n{"type":"tool","name":"search_properties","arguments":{"query":"...","top_k":5}}\n\nTo answer the user:\n{"type":"final","answer":"..."}\n\nRules:\n- Use search_properties for any request about listings, neighborhoods, prices, features, or availability.\n- Answer only with information from the search_properties results.\n- If results are empty or insufficient, ask a concise follow-up question about location, budget, beds/baths, or property type.\n- Do not invent listings or details.',
   INVALID_OUTPUT_PROMPT:
     'INVALID OUTPUT. You must output only valid JSON per schema. Try again now.',
   INVALID_SCHEMA_PROMPT:
     'INVALID JSON SHAPE. Output must match the schema exactly. Try again now.',
   LOCAL_TOOL_CALL_ID: 'local-web-search',
-  TOOL_RESULT_PREFIX: 'Tool result (web_search):\n',
+  TOOL_RESULT_PREFIX: 'Tool result:\n',
   TOOL_RESULT_SUFFIX: '\n\nNow continue and respond with JSON only.',
   FALLBACK_RESPONSE:
     'I could not complete the request within the step limit. Try a more specific question.',
@@ -300,8 +367,29 @@ export const LOGS = {
   REALTIME_CLIENT_DISCONNECTED: 'Realtime client disconnected.',
   REALTIME_CLIENT_INVALID: 'Realtime client event invalid.',
   REALTIME_DISABLED: 'Realtime disabled. Closing client.',
+  REALTIME_PROPERTIES_DISABLED: 'Realtime properties disabled. Closing client.',
   REALTIME_MISSING_CONFIG: 'Realtime config missing. Closing client.',
+  REALTIME_WS_SERVER_READY: 'Realtime WS server ready. path: ',
+  REALTIME_PROPERTIES_WS_SERVER_READY:
+    'Realtime properties WS server ready. path: ',
+  REALTIME_CLIENT_ROUTE: 'Realtime client route: ',
+  REALTIME_OPENAI_CONNECTING: 'Realtime OpenAI socket connecting. url: ',
   REALTIME_OPENAI_CONNECTED: 'Realtime OpenAI socket connected.',
   REALTIME_OPENAI_CLOSED: 'Realtime OpenAI socket closed.',
   REALTIME_OPENAI_ERROR: 'Realtime OpenAI socket error.',
+  REALTIME_OPENAI_ERROR_DETAIL: 'Realtime OpenAI error detail: ',
+  REALTIME_OPENAI_EVENT: 'Realtime OpenAI event: ',
+  REALTIME_OPENAI_EVENT_UNPARSED: 'Realtime OpenAI event unparsed.',
+  REALTIME_UPGRADE: 'Realtime upgrade request: ',
+  REALTIME_UPGRADE_UNHANDLED: 'Realtime upgrade unhandled path: ',
+  REALTIME_CLIENT_EVENT: 'Realtime client event: ',
+  REALTIME_CLIENT_AUDIO_APPEND: 'Realtime client audio append count: ',
+  REALTIME_SESSION_UPDATE: 'Realtime session update.',
+  REALTIME_SESSION_TOOLS: 'Realtime session tools: ',
+  REALTIME_TOOL_CALL: 'Realtime tool call.',
+  REALTIME_TOOL_CALL_NAME: 'Realtime tool call name: ',
+  REALTIME_TOOL_CALL_FAILED: 'Realtime tool call failed.',
+  REALTIME_CLIENT_EVENT_SKIPPED: 'Realtime client event skipped: ',
+  RAG_DATA_LOADED: 'RAG data loaded. entries: ',
+  RAG_DATA_LOAD_FAILED: 'RAG data load failed.',
 };

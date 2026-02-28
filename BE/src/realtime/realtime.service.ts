@@ -8,15 +8,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import WebSocket from 'ws';
 import {
+  DELIMITERS,
   ERRORS,
   HTTP,
   LOGS,
+  OPENAI,
   REALTIME,
   REALTIME_EVENTS,
   REALTIME_KEYS,
   REALTIME_RELAY,
+  TOOLING,
+  TOOLS,
 } from '../constants';
 import { config } from '../config';
+import { ToolsService } from '../tools/tools.service';
 
 type RealtimePayload = Record<string, unknown> & { type?: string };
 
@@ -60,20 +65,41 @@ const buildRelayError = (message: string, code?: string) => {
   return payload;
 };
 
-const buildSessionUpdate = () => {
+const buildSessionUpdate = (tools: unknown[], instructions: string) => {
   const session: Record<string, unknown> = {
     [REALTIME_KEYS.TYPE]: REALTIME.SESSION_TYPE,
-    [REALTIME_KEYS.INPUT_AUDIO_FORMAT]: REALTIME.INPUT_FORMAT_PCM16,
-    [REALTIME_KEYS.OUTPUT_AUDIO_FORMAT]: REALTIME.OUTPUT_FORMAT_PCM16,
     [REALTIME_KEYS.OUTPUT_MODALITIES]: REALTIME.OUTPUT_MODALITIES_AUDIO,
-    [REALTIME_KEYS.VOICE]: config.realtime.voice,
-    [REALTIME_KEYS.TURN_DETECTION]: REALTIME.TURN_DETECTION_SERVER_VAD,
+    [REALTIME_KEYS.AUDIO]: {
+      [REALTIME_KEYS.AUDIO_INPUT]: {
+        [REALTIME_KEYS.AUDIO_FORMAT]: {
+          [REALTIME_KEYS.AUDIO_FORMAT_TYPE]: REALTIME.AUDIO_FORMAT_PCM,
+          [REALTIME_KEYS.AUDIO_FORMAT_RATE]: REALTIME.AUDIO_SAMPLE_RATE,
+        },
+        [REALTIME_KEYS.TURN_DETECTION]: REALTIME.TURN_DETECTION_SERVER_VAD,
+      },
+      [REALTIME_KEYS.AUDIO_OUTPUT]: {
+        [REALTIME_KEYS.AUDIO_FORMAT]: {
+          [REALTIME_KEYS.AUDIO_FORMAT_TYPE]: REALTIME.AUDIO_FORMAT_PCM,
+          [REALTIME_KEYS.AUDIO_FORMAT_RATE]: REALTIME.AUDIO_SAMPLE_RATE,
+        },
+        [REALTIME_KEYS.VOICE]: config.realtime.voice,
+      },
+    },
   };
 
   if (config.realtime.transcriptionModel) {
-    session[REALTIME_KEYS.INPUT_AUDIO_TRANSCRIPTION] = {
+    const audio = session[REALTIME_KEYS.AUDIO] as Record<string, unknown>;
+    const audioInput = audio[REALTIME_KEYS.AUDIO_INPUT] as Record<string, unknown>;
+    audioInput[REALTIME_KEYS.AUDIO_TRANSCRIPTION] = {
       [REALTIME_KEYS.MODEL]: config.realtime.transcriptionModel,
     };
+  }
+  if (tools.length) {
+    session[OPENAI.TOOLS_KEY] = tools;
+    session[OPENAI.TOOL_CHOICE_KEY] = REALTIME.TOOL_CHOICE_AUTO;
+  }
+  if (instructions) {
+    session[OPENAI.INSTRUCTIONS_KEY] = instructions;
   }
 
   return {
@@ -92,11 +118,31 @@ const buildOpenAiUrl = () => {
 export class RealtimeService {
   private readonly logger = new Logger(RealtimeService.name);
 
-  handleClientConnection(client: WebSocket) {
+  constructor(private readonly toolsService: ToolsService) {}
+
+  private logDebug(message: string) {
+    if (config.logging.agentDebug) {
+      this.logger.log(message);
+    }
+  }
+
+  handleClientConnection(client: WebSocket, usePropertyTools: boolean) {
     this.logger.log(LOGS.REALTIME_CLIENT_CONNECTED);
+    this.logDebug(
+      `${LOGS.REALTIME_CLIENT_ROUTE}${
+        usePropertyTools ? REALTIME.PROPERTIES_WS_PATH : REALTIME.WS_PATH
+      }`,
+    );
     if (!config.realtime.enabled) {
       this.logger.warn(LOGS.REALTIME_DISABLED);
       const payload = buildRelayError(ERRORS.REALTIME_DISABLED);
+      client.send(JSON.stringify(payload));
+      client.close();
+      return;
+    }
+    if (usePropertyTools && !config.tools.ragEnabled) {
+      this.logger.warn(LOGS.REALTIME_PROPERTIES_DISABLED);
+      const payload = buildRelayError(ERRORS.RAG_DISABLED);
       client.send(JSON.stringify(payload));
       client.close();
       return;
@@ -110,6 +156,7 @@ export class RealtimeService {
       return;
     }
 
+    this.logDebug(`${LOGS.REALTIME_OPENAI_CONNECTING}${buildOpenAiUrl()}`);
     const openAiSocket = new WebSocket(buildOpenAiUrl(), {
       headers: {
         [HTTP.HEADER_AUTH]: `${HTTP.BEARER_PREFIX}${config.realtime.apiKey}`,
@@ -117,6 +164,54 @@ export class RealtimeService {
     });
 
     const pendingMessages: string[] = [];
+    const tools = config.tools.enabled ? this.toolsService.getToolDefinitions() : [];
+    const filteredTools = usePropertyTools
+      ? tools.filter(
+          (tool) =>
+            (tool as Record<string, unknown>)[OPENAI.FUNCTION_NAME_KEY] ===
+            TOOLS.PROPERTY_SEARCH,
+        )
+      : tools.filter(
+          (tool) =>
+            (tool as Record<string, unknown>)[OPENAI.FUNCTION_NAME_KEY] !==
+            TOOLS.PROPERTY_SEARCH,
+        );
+    const instructions = usePropertyTools
+      ? TOOLING.PROPERTY_TOOL_INSTRUCTIONS
+      : '';
+    const toolNames = filteredTools
+      .map(
+        (tool) => (tool as Record<string, unknown>)[OPENAI.FUNCTION_NAME_KEY],
+      )
+      .filter((name): name is string => typeof name === 'string' && name.length > 0);
+    let lastAudioAppendLog = 0;
+    let audioAppendCount = 0;
+    const audioAppendLogIntervalMs = 1500;
+    const logClientEvent = (eventType: string) => {
+      if (eventType === REALTIME_EVENTS.INPUT_AUDIO_APPEND) {
+        audioAppendCount += 1;
+        const now = Date.now();
+        if (now - lastAudioAppendLog < audioAppendLogIntervalMs) {
+          return;
+        }
+        lastAudioAppendLog = now;
+        this.logDebug(`${LOGS.REALTIME_CLIENT_AUDIO_APPEND}${audioAppendCount}`);
+        audioAppendCount = 0;
+        return;
+      }
+      this.logDebug(`${LOGS.REALTIME_CLIENT_EVENT}${eventType}`);
+    };
+    const logOpenAiEvent = (eventType: string) => {
+      this.logDebug(`${LOGS.REALTIME_OPENAI_EVENT}${eventType}`);
+    };
+    const logOpenAiErrorDetail = (payload: RealtimePayload, eventType: string) => {
+      if (!eventType.includes(REALTIME.ERROR_TOKEN)) {
+        return;
+      }
+      const details = JSON.stringify(payload);
+      this.logger.error(`${LOGS.REALTIME_OPENAI_ERROR_DETAIL}${details}`);
+    };
+    let responseActive = false;
 
     const sendToClient = (payload: string) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -133,9 +228,55 @@ export class RealtimeService {
       pendingMessages.push(text);
     };
 
+    const handleToolCall = async (payload: RealtimePayload) => {
+      if (!config.tools.enabled) {
+        return;
+      }
+      const nameValue = payload[OPENAI.TOOL_CALL_NAME_KEY];
+      const callIdValue = payload[OPENAI.TOOL_CALL_ID_KEY];
+      if (typeof nameValue !== 'string' || typeof callIdValue !== 'string') {
+        return;
+      }
+      const argsValue = payload[OPENAI.TOOL_CALL_ARGUMENTS_KEY];
+      try {
+        this.logger.log(LOGS.REALTIME_TOOL_CALL);
+        this.logDebug(`${LOGS.REALTIME_TOOL_CALL_NAME}${nameValue}`);
+        const [toolOutput] = await this.toolsService.runToolCalls([
+          {
+            name: nameValue,
+            callId: callIdValue,
+            args: argsValue,
+          },
+        ]);
+        if (!toolOutput) {
+          return;
+        }
+        sendToOpenAi({
+          [REALTIME_KEYS.TYPE]: REALTIME_EVENTS.CONVERSATION_ITEM_CREATE,
+          [REALTIME_KEYS.ITEM]: {
+            [REALTIME_KEYS.TYPE]: OPENAI.TOOL_CALL_OUTPUT_TYPE,
+            [OPENAI.TOOL_CALL_ID_KEY]: toolOutput.callId,
+            [OPENAI.TOOL_OUTPUT_KEY]: toolOutput.output,
+          },
+        });
+        sendToOpenAi({ [REALTIME_KEYS.TYPE]: REALTIME_EVENTS.RESPONSE_CREATE });
+      } catch {
+        this.logger.error(LOGS.REALTIME_TOOL_CALL_FAILED);
+        sendToClient(
+          JSON.stringify(buildRelayError(ERRORS.REALTIME_TOOL_FAILED)),
+        );
+      }
+    };
+
     openAiSocket.on('open', () => {
       this.logger.log(LOGS.REALTIME_OPENAI_CONNECTED);
-      sendToOpenAi(buildSessionUpdate());
+      this.logDebug(LOGS.REALTIME_SESSION_UPDATE);
+      if (toolNames.length) {
+        this.logDebug(
+          `${LOGS.REALTIME_SESSION_TOOLS}${toolNames.join(DELIMITERS.COMMA_SPACE)}`,
+        );
+      }
+      sendToOpenAi(buildSessionUpdate(filteredTools, instructions));
       while (pendingMessages.length) {
         const message = pendingMessages.shift();
         if (message) {
@@ -154,6 +295,27 @@ export class RealtimeService {
             : Array.isArray(data)
               ? Buffer.concat(data).toString('utf-8')
               : data.toString();
+      const payload = parsePayload(data);
+      if (payload) {
+        const typeValue = payload[REALTIME_KEYS.TYPE];
+        if (typeof typeValue === 'string') {
+          logOpenAiEvent(typeValue);
+          logOpenAiErrorDetail(payload, typeValue);
+          if (typeValue === REALTIME_EVENTS.RESPONSE_CREATED) {
+            responseActive = true;
+          }
+          if (typeValue === REALTIME_EVENTS.RESPONSE_DONE) {
+            responseActive = false;
+          }
+        } else {
+          this.logDebug(LOGS.REALTIME_OPENAI_EVENT_UNPARSED);
+        }
+        if (typeValue === REALTIME_EVENTS.RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE) {
+          void handleToolCall(payload);
+        }
+      } else {
+        this.logDebug(LOGS.REALTIME_OPENAI_EVENT_UNPARSED);
+      }
       sendToClient(text);
     });
 
@@ -165,6 +327,7 @@ export class RealtimeService {
 
     openAiSocket.on('close', () => {
       this.logger.log(LOGS.REALTIME_OPENAI_CLOSED);
+      responseActive = false;
       sendToClient(JSON.stringify({ [REALTIME_KEYS.TYPE]: REALTIME_RELAY.CLOSED }));
       if (client.readyState === WebSocket.OPEN) {
         client.close();
@@ -186,6 +349,16 @@ export class RealtimeService {
         return;
       }
 
+      if (eventType === REALTIME_EVENTS.RESPONSE_CREATE && responseActive) {
+        this.logDebug(`${LOGS.REALTIME_CLIENT_EVENT_SKIPPED}${eventType}`);
+        return;
+      }
+      if (eventType === REALTIME_EVENTS.RESPONSE_CANCEL && !responseActive) {
+        this.logDebug(`${LOGS.REALTIME_CLIENT_EVENT_SKIPPED}${eventType}`);
+        return;
+      }
+
+      logClientEvent(eventType);
       sendToOpenAi(payload);
     });
 
@@ -194,6 +367,7 @@ export class RealtimeService {
       if (openAiSocket.readyState === WebSocket.OPEN) {
         openAiSocket.close();
       }
+      responseActive = false;
     });
 
     client.on('error', (error) => {
@@ -202,5 +376,6 @@ export class RealtimeService {
         openAiSocket.close();
       }
     });
+
   }
 }

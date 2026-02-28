@@ -1,66 +1,52 @@
 /**
- * @file ModeToggle.tsx
- * @description Mode toggle control for normal, agent, properties, and realtime modes.
- * @module components/ModeToggle
+ * @file PropertiesModeToggle.tsx
+ * @description Listings mode toggle control for chat vs realtime.
+ * @module components/PropertiesModeToggle
  *
  */
 
-import { ARIA, MODE_LABELS, MODES, UI } from '../constants';
-import type { ModeOption } from '../types';
+import { ARIA, PROPERTIES_MODE_LABELS, PROPERTIES_MODES, UI } from '../constants';
+import type { PropertiesModeOption } from '../types';
 
-type ModeToggleProps = {
-  mode: ModeOption;
-  onChange: (mode: ModeOption) => void;
-  showRag?: boolean;
+type PropertiesModeToggleProps = {
+  mode: PropertiesModeOption;
+  onChange: (mode: PropertiesModeOption) => void;
   showRealtime?: boolean;
 };
 
-const buildModeOptions = (showRag: boolean, showRealtime: boolean) => {
+const buildModeOptions = (showRealtime: boolean) => {
   const options = [
     {
-      value: MODES.NORMAL,
-      label: MODE_LABELS[MODES.NORMAL],
-      hint: UI.MODE_HINT_NORMAL,
-    },
-    {
-      value: MODES.AGENT,
-      label: MODE_LABELS[MODES.AGENT],
-      hint: UI.MODE_HINT_AGENT,
+      value: PROPERTIES_MODES.CHAT,
+      label: PROPERTIES_MODE_LABELS[PROPERTIES_MODES.CHAT],
+      hint: UI.PROPERTIES_MODE_HINT_CHAT,
     },
   ];
-  if (showRag) {
-    options.push({
-      value: MODES.PROPERTIES,
-      label: MODE_LABELS[MODES.PROPERTIES],
-      hint: UI.MODE_HINT_PROPERTIES,
-    });
-  }
   if (showRealtime) {
     options.push({
-      value: MODES.REALTIME,
-      label: MODE_LABELS[MODES.REALTIME],
-      hint: UI.MODE_HINT_REALTIME,
+      value: PROPERTIES_MODES.REALTIME,
+      label: PROPERTIES_MODE_LABELS[PROPERTIES_MODES.REALTIME],
+      hint: UI.PROPERTIES_MODE_HINT_REALTIME,
     });
   }
   return options;
 };
 
-export const ModeToggle = ({
+export const PropertiesModeToggle = ({
   mode,
   onChange,
-  showRag = false,
   showRealtime = false,
-}: ModeToggleProps) => (
+}: PropertiesModeToggleProps) => (
   <div
     className="flex items-center gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] px-3 py-2"
     role="radiogroup"
-    aria-label={ARIA.MODE_TOGGLE}
+    aria-label={ARIA.PROPERTIES_MODE_TOGGLE}
   >
     <span className="text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
-      {UI.MODE_LABEL}
+      {UI.PROPERTIES_MODE_LABEL}
     </span>
     <div className="flex items-center gap-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-2)] p-1">
-      {buildModeOptions(showRag, showRealtime).map((option) => {
+      {buildModeOptions(showRealtime).map((option) => {
         const isActive = mode === option.value;
         return (
           <button

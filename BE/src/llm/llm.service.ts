@@ -9,6 +9,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   AGENT,
   BRAVE,
+  DEFAULTS,
   ERRORS,
   HTTP,
   LIMITS,
@@ -43,6 +44,7 @@ type AgentAction =
       arguments: {
         query: string;
         count?: number;
+        top_k?: number;
       };
     };
 
@@ -144,7 +146,10 @@ const extractFirstJsonObject = (text: string) => {
   return null;
 };
 
-const parseAgentAction = (value: unknown): AgentAction | null => {
+const parseAgentAction = (
+  value: unknown,
+  allowedTools: Set<string>,
+): AgentAction | null => {
   if (!isRecord(value)) {
     return null;
   }
@@ -169,12 +174,13 @@ const parseAgentAction = (value: unknown): AgentAction | null => {
     const argsValue = value[AGENT.ARGUMENTS_KEY];
     const name = typeof nameValue === 'string' ? nameValue : '';
 
-    if (name !== TOOLS.WEB_SEARCH || !isRecord(argsValue)) {
+    if (!allowedTools.has(name) || !isRecord(argsValue)) {
       return null;
     }
 
     const queryValue = argsValue[TOOLING.QUERY_KEY];
     const countValue = argsValue[TOOLING.COUNT_KEY];
+    const topKValue = argsValue[TOOLING.TOP_K_KEY];
     const query = typeof queryValue === 'string' ? queryValue.trim() : '';
 
     if (!query) {
@@ -185,6 +191,10 @@ const parseAgentAction = (value: unknown): AgentAction | null => {
       typeof countValue === 'number' && Number.isFinite(countValue)
         ? countValue
         : undefined;
+    const top_k =
+      typeof topKValue === 'number' && Number.isFinite(topKValue)
+        ? topKValue
+        : undefined;
 
     return {
       type: 'tool',
@@ -192,6 +202,7 @@ const parseAgentAction = (value: unknown): AgentAction | null => {
       arguments: {
         query,
         count,
+        top_k,
       },
     };
   }
@@ -316,6 +327,19 @@ const normalizeToolCount = (value: number | undefined, fallback: number) => {
   return Math.min(
     Math.max(rounded, LIMITS.TOOL_MIN_COUNT),
     LIMITS.TOOL_MAX_COUNT,
+  );
+};
+
+const normalizePropertyCount = (value: number | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULTS.PROPERTY_RESULT_COUNT;
+  }
+
+  const rounded = Math.floor(value);
+
+  return Math.min(
+    Math.max(rounded, LIMITS.PROPERTY_MIN_COUNT),
+    LIMITS.PROPERTY_MAX_COUNT,
   );
 };
 
@@ -604,15 +628,55 @@ export class LlmService {
     return this.requestOpenAiWithTools(input);
   }
 
+  async requestPropertyAgentResponse(input: string) {
+    if (!config.tools.ragEnabled) {
+      this.logger.log(LOGS.TOOL_DISABLED);
+      throw new Error(ERRORS.RAG_DISABLED);
+    }
+
+    this.logger.log(LOGS.AGENT_REQUEST);
+
+    if (config.llm.useLocal) {
+      this.logger.log(LOGS.LOCAL_LLM_REQUEST);
+      return this.requestOllamaWithPropertyTools(input);
+    }
+
+    this.logger.log(LOGS.OPENAI_REQUEST);
+    return this.requestOpenAiWithPropertyTools(input);
+  }
+
   private async requestOllamaWithTools(input: string) {
-    if (!config.brave) {
+    return this.requestOllamaWithToolsUsing(
+      input,
+      AGENT.SYSTEM_PROMPT,
+      new Set([TOOLS.WEB_SEARCH]),
+    );
+  }
+
+  private async requestOllamaWithPropertyTools(input: string) {
+    return this.requestOllamaWithToolsUsing(
+      input,
+      AGENT.PROPERTY_SYSTEM_PROMPT,
+      new Set([TOOLS.PROPERTY_SEARCH]),
+    );
+  }
+
+  private async requestOllamaWithToolsUsing(
+    input: string,
+    systemPrompt: string,
+    allowedTools: Set<string>,
+  ) {
+    if (allowedTools.has(TOOLS.WEB_SEARCH) && !config.brave) {
       throw new Error(ERRORS.TOOLS_DISABLED);
+    }
+    if (allowedTools.has(TOOLS.PROPERTY_SEARCH) && !config.tools.ragEnabled) {
+      throw new Error(ERRORS.RAG_DISABLED);
     }
 
     const messages: AgentMessage[] = [
       {
         role: AGENT.ROLE_SYSTEM,
-        content: AGENT.SYSTEM_PROMPT,
+        content: systemPrompt,
       },
       {
         role: AGENT.ROLE_USER,
@@ -640,7 +704,7 @@ export class LlmService {
         continue;
       }
 
-      const action = parseAgentAction(parsedJson);
+      const action = parseAgentAction(parsedJson, allowedTools);
 
       if (!action) {
         this.logAgent(LOGS.AGENT_SCHEMA_FAILED);
@@ -665,17 +729,23 @@ export class LlmService {
       this.logAgent(LOGS.AGENT_ACTION_TOOL);
       this.logAgent(`${LOGS.AGENT_TOOL_NAME}${action.name}`);
       this.logAgent(`${LOGS.AGENT_TOOL_QUERY}${action.arguments.query}`);
-      const count = normalizeToolCount(
-        action.arguments.count,
-        config.brave.resultCount,
-      );
-      const toolArgs = {
+      const toolArgs: Record<string, unknown> = {
         [TOOLING.QUERY_KEY]: action.arguments.query,
-        [TOOLING.COUNT_KEY]: count,
       };
+      if (action.name === TOOLS.WEB_SEARCH) {
+        const fallbackCount =
+          config.brave?.resultCount ?? DEFAULTS.BRAVE_RESULT_COUNT;
+        const count = normalizeToolCount(action.arguments.count, fallbackCount);
+        toolArgs[TOOLING.COUNT_KEY] = count;
+      }
+      if (action.name === TOOLS.PROPERTY_SEARCH) {
+        toolArgs[TOOLING.TOP_K_KEY] = normalizePropertyCount(
+          action.arguments.top_k,
+        );
+      }
       const [toolOutput] = await this.toolsService.runToolCalls([
         {
-          name: TOOLS.WEB_SEARCH,
+          name: action.name,
           callId: AGENT.LOCAL_TOOL_CALL_ID,
           args: toolArgs,
         },
@@ -699,10 +769,38 @@ export class LlmService {
 
   private async requestOpenAiWithTools(input: string) {
     const tools = this.toolsService.getToolDefinitions();
+    return this.requestOpenAiWithToolsUsing(
+      input,
+      tools,
+      TOOLING.TOOL_INSTRUCTIONS,
+    );
+  }
+
+  private async requestOpenAiWithPropertyTools(input: string) {
+    const tools = this.toolsService
+      .getToolDefinitions()
+      .filter(
+        (tool) => tool?.[OPENAI.FUNCTION_NAME_KEY] === TOOLS.PROPERTY_SEARCH,
+      );
+    if (!tools.length) {
+      throw new Error(ERRORS.RAG_DISABLED);
+    }
+    return this.requestOpenAiWithToolsUsing(
+      input,
+      tools,
+      TOOLING.PROPERTY_TOOL_INSTRUCTIONS,
+    );
+  }
+
+  private async requestOpenAiWithToolsUsing(
+    input: string,
+    tools: unknown[],
+    instructions: string,
+  ) {
     const initialPayload = {
       ...buildOpenAiPayload(input, OPENAI.STORE_ENABLED),
       [OPENAI.TOOLS_KEY]: tools,
-      [OPENAI.INSTRUCTIONS_KEY]: TOOLING.TOOL_INSTRUCTIONS,
+      [OPENAI.INSTRUCTIONS_KEY]: instructions,
     };
     let currentResponse = await requestOpenAiResponse(
       initialPayload,
@@ -765,7 +863,7 @@ export class LlmService {
         ...buildOpenAiPayload(outputItems, OPENAI.STORE_ENABLED),
         [OPENAI.PREVIOUS_RESPONSE_ID_KEY]: responseId,
         [OPENAI.TOOLS_KEY]: tools,
-        [OPENAI.INSTRUCTIONS_KEY]: TOOLING.TOOL_INSTRUCTIONS,
+        [OPENAI.INSTRUCTIONS_KEY]: instructions,
       };
 
       currentResponse = await requestOpenAiResponse(

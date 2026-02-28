@@ -24,10 +24,17 @@ export const UI = {
   MODE_LABEL: 'Mode',
   MODE_NORMAL: 'Normal',
   MODE_AGENT: 'Agent',
+  MODE_PROPERTIES: 'Properties',
   MODE_REALTIME: 'Realtime',
   MODE_HINT_NORMAL: 'Direct',
   MODE_HINT_AGENT: 'Web search',
+  MODE_HINT_PROPERTIES: 'Listings',
   MODE_HINT_REALTIME: 'Voice',
+  PROPERTIES_MODE_LABEL: 'Listings Mode',
+  PROPERTIES_MODE_CHAT: 'Chat',
+  PROPERTIES_MODE_REALTIME: 'Realtime',
+  PROPERTIES_MODE_HINT_CHAT: 'Text',
+  PROPERTIES_MODE_HINT_REALTIME: 'Voice',
   INPUT_LABEL: 'Message',
   INPUT_PLACEHOLDER: 'Speak or type a message',
   REALTIME_INPUT_PLACEHOLDER: 'Realtime voice uses the mic controls',
@@ -51,6 +58,7 @@ export const ARIA = {
   VOICE_ORB: 'Voice orb',
   THEME_TOGGLE: 'Toggle theme',
   MODE_TOGGLE: 'Toggle mode',
+  PROPERTIES_MODE_TOGGLE: 'Toggle listings mode',
 };
 
 export const IDS = {
@@ -68,13 +76,25 @@ export const THEME = {
 export const MODES = {
   NORMAL: 'normal',
   AGENT: 'agent',
+  PROPERTIES: 'properties',
+  REALTIME: 'realtime',
+};
+
+export const PROPERTIES_MODES = {
+  CHAT: 'chat',
   REALTIME: 'realtime',
 };
 
 export const MODE_LABELS = {
   [MODES.NORMAL]: UI.MODE_NORMAL,
   [MODES.AGENT]: UI.MODE_AGENT,
+  [MODES.PROPERTIES]: UI.MODE_PROPERTIES,
   [MODES.REALTIME]: UI.MODE_REALTIME,
+};
+
+export const PROPERTIES_MODE_LABELS = {
+  [PROPERTIES_MODES.CHAT]: UI.PROPERTIES_MODE_CHAT,
+  [PROPERTIES_MODES.REALTIME]: UI.PROPERTIES_MODE_REALTIME,
 };
 
 export const STATES = {
@@ -159,6 +179,7 @@ export const WAVEFORM = {
 export const API_PATHS = {
   LLM_RESPOND: '/api/llm/respond',
   LLM_AGENT: '/api/llm/agent',
+  LLM_PROPERTIES: '/api/llm/properties',
   HEALTH: '/api/health',
 };
 
@@ -191,10 +212,28 @@ export const ERRORS = {
   MISSING_ENV: 'Missing required environment variables:',
 };
 
+export const LOGS = {
+  REALTIME_CONNECTING: 'Realtime connecting: ',
+  REALTIME_OPEN: 'Realtime socket open.',
+  REALTIME_CLOSE: 'Realtime socket closed.',
+  REALTIME_ERROR: 'Realtime socket error.',
+  REALTIME_DISABLED: 'Realtime disabled.',
+  REALTIME_MISSING_URL: 'Realtime WS URL missing.',
+  REALTIME_EVENT_IN: 'Realtime recv event: ',
+  REALTIME_EVENT_OUT: 'Realtime send event: ',
+  REALTIME_EVENT_UNPARSED: 'Realtime event unparsed.',
+  REALTIME_AUDIO_APPEND: 'Realtime audio append count: ',
+  REALTIME_TRANSCRIPT_IN: 'Realtime user transcript delta: ',
+  REALTIME_TRANSCRIPT_OUT: 'Realtime assistant transcript delta: ',
+};
+
 export const ENV_KEYS = {
   API_BASE_URL: 'VITE_API_BASE_URL',
+  RAG_ENABLED: 'VITE_RAG_ENABLED',
+  DEBUG_LOGS: 'VITE_DEBUG_LOGS',
   REALTIME_ENABLED: 'VITE_REALTIME_ENABLED',
   REALTIME_WS_URL: 'VITE_REALTIME_WS_URL',
+  REALTIME_PROPERTIES_WS_URL: 'VITE_REALTIME_PROPERTIES_WS_URL',
 };
 
 export const DELIMITERS = {
@@ -237,7 +276,9 @@ export const REALTIME = {
   INPUT_AUDIO_SPEECH_STARTED: 'input_audio_buffer.speech_started',
   INPUT_AUDIO_SPEECH_STOPPED: 'input_audio_buffer.speech_stopped',
   RESPONSE_CREATE: 'response.create',
+  RESPONSE_CREATED: 'response.created',
   RESPONSE_CANCEL: 'response.cancel',
+  RESPONSE_DONE: 'response.done',
   CONVERSATION_ITEM_TRUNCATE: 'conversation.item.truncate',
   OUTPUT_AUDIO_DELTA: 'response.output_audio.delta',
   OUTPUT_AUDIO_DONE: 'response.output_audio.done',
