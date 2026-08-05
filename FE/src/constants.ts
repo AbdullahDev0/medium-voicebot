@@ -181,6 +181,7 @@ export const API_PATHS = {
   LLM_AGENT: '/api/llm/agent',
   LLM_PROPERTIES: '/api/llm/properties',
   HEALTH: '/api/health',
+  VOICE_SESSION: '/api/voice/session',
 };
 
 export const API_REQUEST = {
@@ -209,6 +210,7 @@ export const ERRORS = {
   REALTIME_CONNECTION_FAILED: 'Realtime connection failed.',
   REALTIME_SESSION_FAILED: 'Realtime session failed.',
   REALTIME_STREAM_FAILED: 'Realtime stream failed.',
+  WEBRTC_UNSUPPORTED: 'WebRTC is not supported in this browser.',
   MISSING_ENV: 'Missing required environment variables:',
 };
 
@@ -219,6 +221,12 @@ export const LOGS = {
   REALTIME_ERROR: 'Realtime socket error.',
   REALTIME_DISABLED: 'Realtime disabled.',
   REALTIME_MISSING_URL: 'Realtime WS URL missing.',
+  WEBRTC_CONNECTING: 'WebRTC connecting.',
+  WEBRTC_SIGNALING_OPEN: 'WebRTC signaling open.',
+  WEBRTC_SIGNALING_CLOSE: 'WebRTC signaling close.',
+  WEBRTC_SIGNALING_ERROR: 'WebRTC signaling error.',
+  WEBRTC_DATA_OPEN: 'WebRTC data channel open.',
+  WEBRTC_DATA_CLOSE: 'WebRTC data channel closed.',
   REALTIME_EVENT_IN: 'Realtime recv event: ',
   REALTIME_EVENT_OUT: 'Realtime send event: ',
   REALTIME_EVENT_UNPARSED: 'Realtime event unparsed.',
@@ -232,6 +240,7 @@ export const ENV_KEYS = {
   RAG_ENABLED: 'VITE_RAG_ENABLED',
   DEBUG_LOGS: 'VITE_DEBUG_LOGS',
   REALTIME_ENABLED: 'VITE_REALTIME_ENABLED',
+  REALTIME_WEBRTC_ENABLED: 'VITE_REALTIME_WEBRTC_ENABLED',
   REALTIME_WS_URL: 'VITE_REALTIME_WS_URL',
   REALTIME_PROPERTIES_WS_URL: 'VITE_REALTIME_PROPERTIES_WS_URL',
 };
@@ -298,4 +307,14 @@ export const REALTIME_AUDIO = {
 
 export const REALTIME_TIMEOUTS = {
   CONNECT_MS: 8000,
+};
+
+export const WEBRTC = {
+  SIGNALING_OFFER: 'webrtc.offer',
+  SIGNALING_ANSWER: 'webrtc.answer',
+  SIGNALING_ICE: 'webrtc.ice',
+  SIGNALING_ERROR: 'webrtc.error',
+  PLAYBACK_STARTED: 'session.playback.started',
+  PLAYBACK_DONE: 'session.playback.done',
+  ASSISTANT_SPEAKING: 'assistant.speaking',
 };

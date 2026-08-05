@@ -23,6 +23,28 @@ const readNumber = (value?: string) => {
   return Number(value);
 };
 
+const parseIceServers = (value?: string) => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return DEFAULTS.WEBRTC_ICE_SERVERS;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
+    }
+  } catch {
+    // Fall through to comma-delimited parsing.
+  }
+  const urls = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (!urls.length) {
+    return DEFAULTS.WEBRTC_ICE_SERVERS;
+  }
+  return [{ urls: urls.length === 1 ? urls[0] : urls }];
+};
+
 const requireEnv = (keys: string[]) => {
   const missing = keys.filter((key) => !readEnv(key));
   if (missing.length) {
@@ -73,6 +95,7 @@ const env = requireEnv([
 
 const portValue = Number(env[ENV_KEYS.PORT]);
 const braveResultCount = readNumber(readEnv(ENV_KEYS.BRAVE_RESULT_COUNT));
+const webrtcIceServers = parseIceServers(readEnv(ENV_KEYS.WEBRTC_ICE_SERVERS));
 
 if (!Number.isFinite(portValue)) {
   throw new Error(ERRORS.INVALID_PORT);
@@ -112,6 +135,9 @@ export const config = {
   rag: {
     enabled: useRag,
     dataPath: propertiesDataPath,
+  },
+  webrtc: {
+    iceServers: webrtcIceServers,
   },
   logging: {
     agentDebug: agentDebugLogs,

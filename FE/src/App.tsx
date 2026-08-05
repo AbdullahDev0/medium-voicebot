@@ -32,7 +32,7 @@ import { TranscriptTimeline } from './components/TranscriptTimeline';
 import { VoiceOrb } from './components/VoiceOrb';
 import { Waveform } from './components/Waveform';
 import { useMicrophoneLevel } from './hooks/useMicrophoneLevel';
-import { useRealtimeSession } from './hooks/useRealtimeSession';
+import { useVoiceSession } from './hooks/useVoiceSession';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { requestAssistantResponse } from './services/llm';
@@ -116,7 +116,7 @@ export const App = () => {
     ? config.realtime.propertiesWsUrl
     : config.realtime.wsUrl;
 
-  const realtimeSession = useRealtimeSession({
+  const realtimeSession = useVoiceSession({
     onUserTranscriptDelta: (id, text) => {
       upsertTranscriptDelta(id, ROLES.USER, text);
     },
@@ -128,6 +128,7 @@ export const App = () => {
     onPlaybackStart: () => setStatus(STATES.SPEAKING),
     onPlaybackEnd: () => setStatus(STATES.IDLE),
     wsUrl: realtimeWsUrl,
+    usePropertyTools: isPropertiesRealtime,
   });
   const {
     disconnect: disconnectRealtime,

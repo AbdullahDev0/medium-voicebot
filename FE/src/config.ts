@@ -25,6 +25,9 @@ const requireEnv = (keys: string[]) => {
 };
 
 const realtimeEnabled = normalizeBoolean(readEnv(ENV_KEYS.REALTIME_ENABLED));
+const webrtcEnabledRaw = readEnv(ENV_KEYS.REALTIME_WEBRTC_ENABLED);
+const webrtcEnabled =
+  typeof webrtcEnabledRaw === 'undefined' ? true : normalizeBoolean(webrtcEnabledRaw);
 const ragEnabled = normalizeBoolean(readEnv(ENV_KEYS.RAG_ENABLED));
 const debugEnabled = normalizeBoolean(readEnv(ENV_KEYS.DEBUG_LOGS));
 
@@ -46,6 +49,7 @@ export const config = {
   },
   realtime: {
     enabled: realtimeEnabled,
+    preferWebrtc: webrtcEnabled,
     wsUrl: realtimeEnabled ? env[ENV_KEYS.REALTIME_WS_URL] : '',
     propertiesWsUrl:
       realtimeEnabled && ragEnabled ? env[ENV_KEYS.REALTIME_PROPERTIES_WS_URL] : '',

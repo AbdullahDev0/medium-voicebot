@@ -12,6 +12,8 @@ export const API = {
   RESPOND: 'respond',
   AGENT: 'agent',
   PROPERTIES: 'properties',
+  VOICE: 'voice',
+  SESSION: 'session',
   REQUEST_INPUT_KEY: 'input',
   RESPONSE_TEXT_KEY: 'text',
   RESPONSE_STATUS_KEY: 'status',
@@ -34,6 +36,7 @@ export const ENV_KEYS = {
   OPENAI_REALTIME_MODEL: 'OPENAI_REALTIME_MODEL',
   OPENAI_REALTIME_VOICE: 'OPENAI_REALTIME_VOICE',
   OPENAI_REALTIME_TRANSCRIBE_MODEL: 'OPENAI_REALTIME_TRANSCRIBE_MODEL',
+  WEBRTC_ICE_SERVERS: 'WEBRTC_ICE_SERVERS',
   PROPERTIES_DATA_PATH: 'PROPERTIES_DATA_PATH',
   BRAVE_API_KEY: 'BRAVE_API_KEY',
   BRAVE_BASE_URL: 'BRAVE_BASE_URL',
@@ -60,6 +63,8 @@ export const ERRORS = {
   REALTIME_SESSION_FAILED: 'Realtime session failed.',
   REALTIME_CLIENT_INVALID: 'Realtime client event is invalid.',
   REALTIME_TOOL_FAILED: 'Realtime tool call failed.',
+  WEBRTC_UNSUPPORTED: 'WebRTC is not supported.',
+  WEBRTC_SESSION_INVALID: 'WebRTC session is invalid.',
 };
 
 export const DELIMITERS = {
@@ -133,6 +138,22 @@ export const REALTIME = {
     create_response: false,
     interrupt_response: true,
   },
+};
+
+export const WEBRTC = {
+  WS_PATH: '/voice/webrtc',
+  ICE_SERVERS_HEADER: 'x-forwarded-proto',
+  SIGNALING_OFFER: 'webrtc.offer',
+  SIGNALING_ANSWER: 'webrtc.answer',
+  SIGNALING_ICE: 'webrtc.ice',
+  SIGNALING_ERROR: 'webrtc.error',
+  SIGNALING_READY: 'webrtc.ready',
+  PLAYBACK_STARTED: 'session.playback.started',
+  PLAYBACK_DONE: 'session.playback.done',
+  ASSISTANT_SPEAKING: 'assistant.speaking',
+  AUDIO_SAMPLE_RATE: 48000,
+  AUDIO_BITS_PER_SAMPLE: 16,
+  AUDIO_CHANNELS: 1,
 };
 
 export const REALTIME_KEYS = {
@@ -248,6 +269,8 @@ export const TOOLING = {
 export const DEFAULTS = {
   BRAVE_RESULT_COUNT: 5,
   PROPERTY_RESULT_COUNT: 5,
+  WEBRTC_ICE_SERVERS: [{ urls: 'stun:stun.l.google.com:19302' }],
+  WEBRTC_SESSION_TTL_MS: 5 * 60 * 1000,
 };
 
 export const LIMITS = {
@@ -390,6 +413,19 @@ export const LOGS = {
   REALTIME_TOOL_CALL_NAME: 'Realtime tool call name: ',
   REALTIME_TOOL_CALL_FAILED: 'Realtime tool call failed.',
   REALTIME_CLIENT_EVENT_SKIPPED: 'Realtime client event skipped: ',
+  WEBRTC_SESSION_CREATED: 'WebRTC session created. id: ',
+  WEBRTC_SESSION_EXPIRED: 'WebRTC session expired. id: ',
+  WEBRTC_SIGNALING_CONNECTED: 'WebRTC signaling connected.',
+  WEBRTC_SIGNALING_DISCONNECTED: 'WebRTC signaling disconnected.',
+  WEBRTC_SIGNALING_MESSAGE: 'WebRTC signaling message: ',
+  WEBRTC_PEER_CONNECTED: 'WebRTC peer connected.',
+  WEBRTC_PEER_DISCONNECTED: 'WebRTC peer disconnected.',
+  WEBRTC_PEER_FAILED: 'WebRTC peer connection failed.',
+  WEBRTC_DATA_CHANNEL_OPEN: 'WebRTC data channel open.',
+  WEBRTC_DATA_CHANNEL_CLOSED: 'WebRTC data channel closed.',
+  WEBRTC_AUDIO_SINK_READY: 'WebRTC audio sink ready.',
+  WEBRTC_AUDIO_SOURCE_READY: 'WebRTC audio source ready.',
+  WEBRTC_WS_SERVER_READY: 'WebRTC signaling server ready. path: ',
   RAG_DATA_LOADED: 'RAG data loaded. entries: ',
   RAG_DATA_LOAD_FAILED: 'RAG data load failed.',
 };

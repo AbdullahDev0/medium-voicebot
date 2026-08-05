@@ -35,6 +35,7 @@ Used when `USE_REALTIME=true`:
 - `OPENAI_REALTIME_MODEL`
 - `OPENAI_REALTIME_VOICE`
 - `OPENAI_REALTIME_TRANSCRIBE_MODEL` (optional, enables input transcription)
+- `WEBRTC_ICE_SERVERS` (optional, JSON array or comma-delimited list of STUN/TURN URLs)
 
 ### Ollama (Local)
 
@@ -65,3 +66,10 @@ Used when `USE_LOCAL_LLM=true`:
 
 - `WS /ws/realtime`
   - Realtime voice websocket gateway
+
+- `POST /api/voice/session`
+  - Creates a WebRTC realtime session for signaling
+  - Response: `{ "sessionId": "...", "webrtcWsUrl": "wss://...", "iceServers": [...] }`
+
+- `WS /voice/webrtc`
+  - WebRTC signaling websocket (SDP/ICE exchange)

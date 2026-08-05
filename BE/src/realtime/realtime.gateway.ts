@@ -10,14 +10,16 @@ import type { IncomingMessage } from 'http';
 import type { Socket } from 'net';
 import { HttpAdapterHost } from '@nestjs/core';
 import { WebSocketServer } from 'ws';
-import { LOGS, REALTIME } from '../constants';
+import { LOGS, REALTIME, WEBRTC } from '../constants';
 import { config } from '../config';
 import { RealtimeService } from './realtime.service';
+import { WebrtcService } from './webrtc/webrtc.service';
 
 @Injectable()
 export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
   private generalServer: WebSocketServer | null = null;
   private propertiesServer: WebSocketServer | null = null;
+  private webrtcServer: WebSocketServer | null = null;
   private upgradeHandler:
     | ((request: IncomingMessage, socket: Socket, head: Buffer) => void)
     | null = null;
@@ -26,6 +28,7 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly httpAdapterHost: HttpAdapterHost,
     private readonly realtimeService: RealtimeService,
+    private readonly webrtcService: WebrtcService,
   ) {}
 
   private logDebug(message: string) {
@@ -46,8 +49,13 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
       this.logDebug(`${LOGS.REALTIME_CLIENT_ROUTE}${REALTIME.PROPERTIES_WS_PATH}`);
       this.realtimeService.handleClientConnection(socket, true);
     });
+    const webrtcServer = new WebSocketServer({ noServer: true });
+    webrtcServer.on('connection', (socket, request) => {
+      this.webrtcService.handleSignalingConnection(socket, request);
+    });
     this.generalServer = generalServer;
     this.propertiesServer = propertiesServer;
+    this.webrtcServer = webrtcServer;
     this.upgradeHandler = (request, socket, head) => {
       const rawUrl = request.url ?? '';
       const path = rawUrl.split('?')[0];
@@ -64,6 +72,12 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
         });
         return;
       }
+      if (path === WEBRTC.WS_PATH) {
+        webrtcServer.handleUpgrade(request, socket, head, (ws) => {
+          webrtcServer.emit('connection', ws, request);
+        });
+        return;
+      }
       this.logDebug(`${LOGS.REALTIME_UPGRADE_UNHANDLED}${path}`);
       socket.destroy();
     };
@@ -72,6 +86,7 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
     this.logDebug(
       `${LOGS.REALTIME_PROPERTIES_WS_SERVER_READY}${REALTIME.PROPERTIES_WS_PATH}`,
     );
+    this.logDebug(`${LOGS.WEBRTC_WS_SERVER_READY}${WEBRTC.WS_PATH}`);
   }
 
   onModuleDestroy() {
@@ -87,6 +102,10 @@ export class RealtimeGateway implements OnModuleInit, OnModuleDestroy {
     if (this.propertiesServer) {
       this.propertiesServer.close();
       this.propertiesServer = null;
+    }
+    if (this.webrtcServer) {
+      this.webrtcServer.close();
+      this.webrtcServer = null;
     }
   }
 }
